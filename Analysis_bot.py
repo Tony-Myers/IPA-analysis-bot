@@ -14,7 +14,7 @@ from openai import OpenAI, OpenAIError, RateLimitError
 
 # Initialize OpenAI Client with the API key from Streamlit secrets
 client = OpenAI(
-    api_key=st.secrets["OPENAI_API_KEY"]  # This is also the default, it can be omitted
+    api_key=st.secrets["OPENAI_API_KEY"]  # This can be omitted if set globally
 )
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3):
@@ -23,7 +23,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3):
     Includes basic error handling and rate limiting.
     """
     try:
-        response = client.chat.create(
+        response = client.chat_completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
@@ -32,6 +32,8 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3):
             max_tokens=max_tokens,
             temperature=temperature,
         )
+        # Log the response for debugging (optional)
+        logger.info(f"API Response: {response}")
         return response.choices[0].message.content.strip()
     except RateLimitError:
         st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
