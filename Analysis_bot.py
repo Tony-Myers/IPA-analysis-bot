@@ -14,7 +14,7 @@ from openai import OpenAI
 
 # Initialize OpenAI Client with the API key from Streamlit secrets
 client = OpenAI(
-    api_key=st.secrets["openai_api_key"]  # Ensure this key exists in .streamlit/secrets.toml
+    api_key=st.secrets["openai_api_key"]  # Ensure this key exists in .streamlit/secrets.toml or Streamlit Cloud secrets
 )
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3):
