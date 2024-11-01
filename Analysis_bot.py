@@ -1,12 +1,11 @@
+import streamlit as st
 import openai
 import os
 import json
 import time
 
-# Set your OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY")  # Ensure you set this environment variable
-# Alternatively, you can directly set your API key as follows:
-# openai.api_key = 'your-api-key-here'
+# Set your OpenAI API key using Streamlit secrets
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 def read_transcript(file_path):
     """Reads the transcript from a text file."""
