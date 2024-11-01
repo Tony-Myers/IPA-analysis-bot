@@ -9,19 +9,21 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Set your OpenAI API key using Streamlit secrets
-openai.api_key = st.secrets["OPENAI_API_KEY"]
-
 # Import exceptions directly from openai
-from openai import OpenAIError, RateLimitError
+from openai import OpenAI, OpenAIError, RateLimitError
+
+# Initialize OpenAI Client with the API key from Streamlit secrets
+client = OpenAI(
+    api_key=st.secrets["OPENAI_API_KEY"]  # This is also the default, it can be omitted
+)
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3):
     """
-    Sends a prompt to the OpenAI ChatGPT API and returns the response.
+    Sends a prompt to the OpenAI ChatGPT API using the new client-based interface and returns the response.
     Includes basic error handling and rate limiting.
     """
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
@@ -30,7 +32,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3):
             max_tokens=max_tokens,
             temperature=temperature,
         )
-        return response['choices'][0]['message']['content'].strip()
+        return response.choices[0].message.content.strip()
     except RateLimitError:
         st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
         logger.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
