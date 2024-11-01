@@ -12,7 +12,10 @@ logger = logging.getLogger(__name__)
 # Import OpenAI class
 from openai import OpenAI
 
-client = OpenAI(api_key=st.secrets["openai_api_key"])
+# Initialize OpenAI Client with the API key from Streamlit secrets
+client = OpenAI(
+    api_key=st.secrets["openai_api_key"]  # Ensure this key exists in .streamlit/secrets.toml
+)
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3):
     """
