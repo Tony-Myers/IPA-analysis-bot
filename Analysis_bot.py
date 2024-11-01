@@ -9,31 +9,31 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI Client with the API key from Streamlit secrets
-openai_client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+# Set your OpenAI API key using Streamlit secrets
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3):
     """
-    Sends a prompt to the OpenAI ChatGPT API using the new client-based interface and returns the response.
+    Sends a prompt to the OpenAI ChatGPT API and returns the response.
     Includes basic error handling and rate limiting.
     """
     try:
-        response = openai_client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=max_tokens,
-            n=1,
             temperature=temperature,
         )
         return response['choices'][0]['message']['content'].strip()
-    except openai.RateLimitError:
+    except openai.error.RateLimitError:
         st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
+        logger.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
         time.sleep(60)
         return call_chatgpt(prompt, model, max_tokens, temperature)
-    except openai.OpenAIError as e:
+    except openai.error.OpenAIError as e:
         st.error(f"An OpenAI error occurred: {e}")
         logger.error(f"OpenAIError: {e}")
         return ""
@@ -95,122 +95,4 @@ def stage3_cluster_themes(emergent_themes):
 def stage4_write_up_themes(clustered_themes, transcript):
     """Stage 4: Writing up themes with extracts and analytic comments."""
     prompt = f"""
-    Using the following clustered themes from an IPA analysis, write up each theme by describing it, providing relevant extracts from the transcript, and adding analytic comments.
-
-    Clustered Themes:
-    {json.dumps(clustered_themes, indent=2)}
-
-    Transcript:
-    {transcript}
-
-    Please provide the write-up in a structured JSON format with the following fields for each theme:
-    - superordinate_theme
-        - subtheme
-            - description
-            - extracts
-            - analytic_comments
-    """
-    return call_chatgpt(prompt)
-
-def save_output(data, file_path):
-    """Saves the data to a JSON file."""
-    try:
-        directory = os.path.dirname(file_path)
-        if directory and not os.path.exists(directory):
-            os.makedirs(directory)
-        
-        with open(file_path, 'w', encoding='utf-8') as file:
-            json.dump(data, file, indent=2, ensure_ascii=False)
-        st.success(f"IPA analysis complete. Results saved to {file_path}")
-    except Exception as e:
-        st.error(f"Failed to save the output file: {e}")
-        logger.error(f"Failed to save the output file: {e}")
-
-def ipa_analysis_pipeline(transcript, output_path):
-    """Runs the full IPA analysis pipeline on a given transcript."""
-    try:
-        transcript_text = transcript.read().decode("utf-8")
-        if not transcript_text.strip():
-            st.error("The uploaded transcript file is empty.")
-            return
-    except Exception as e:
-        st.error(f"Error reading the transcript file: {e}")
-        logger.error(f"Error reading the transcript file: {e}")
-        return
-    
-    st.write("### Stage 1: Generating Initial Notes...")
-    with st.spinner("Generating initial notes..."):
-        initial_notes_json = stage1_initial_notes(transcript_text)
-    
-    if initial_notes_json:
-        try:
-            initial_notes = json.loads(initial_notes_json)
-            st.success("Stage 1 completed successfully.")
-        except json.JSONDecodeError:
-            st.error("Error parsing JSON from Stage 1. Please check the API response.")
-            logger.error("Error parsing JSON from Stage 1. Please check the API response.")
-            initial_notes = {}
-    else:
-        initial_notes = {}
-    
-    if not initial_notes:
-        st.error("Stage 1 failed. Aborting the pipeline.")
-        return
-    
-    st.write("### Stage 2: Extracting Emergent Themes...")
-    with st.spinner("Extracting emergent themes..."):
-        emergent_themes_json = stage2_emergent_themes(initial_notes)
-    
-    if emergent_themes_json:
-        try:
-            emergent_themes = json.loads(emergent_themes_json)
-            st.success("Stage 2 completed successfully.")
-        except json.JSONDecodeError:
-            st.error("Error parsing JSON from Stage 2. Please check the API response.")
-            logger.error("Error parsing JSON from Stage 2. Please check the API response.")
-            emergent_themes = []
-    else:
-        emergent_themes = []
-    
-    if not emergent_themes:
-        st.error("Stage 2 failed. Aborting the pipeline.")
-        return
-    
-    st.write("### Stage 3: Clustering Themes...")
-    with st.spinner("Clustering themes..."):
-        clustered_themes_json = stage3_cluster_themes(emergent_themes)
-    
-    if clustered_themes_json:
-        try:
-            clustered_themes = json.loads(clustered_themes_json)
-            st.success("Stage 3 completed successfully.")
-        except json.JSONDecodeError:
-            st.error("Error parsing JSON from Stage 3. Please check the API response.")
-            logger.error("Error parsing JSON from Stage 3. Please check the API response.")
-            clustered_themes = {}
-    else:
-        clustered_themes = {}
-    
-    if not clustered_themes:
-        st.error("Stage 3 failed. Aborting the pipeline.")
-        return
-    
-    st.write("### Stage 4: Writing Up Themes with Extracts and Comments...")
-    with st.spinner("Writing up themes..."):
-        write_up_json = stage4_write_up_themes(clustered_themes, transcript_text)
-    
-    if write_up_json:
-        try:
-            write_up = json.loads(write_up_json)
-            st.success("Stage 4 completed successfully.")
-        except json.JSONDecodeError:
-            st.error("Error parsing JSON from Stage 4. Please check the API response.")
-            logger.error("Error parsing JSON from Stage 4. Please check the API response.")
-            write_up = {}
-    else:
-        write_up = {}
-    
-    if write_up:
-        st.write("### Saving the Final Analysis to File...")
-        save_output(write_up, output_path)
-        st
+    Using the following clustered themes from an IPA analys
