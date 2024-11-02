@@ -1,22 +1,26 @@
 import streamlit as st
-import openai
+import os
 import json
 import time
-import os
 import logging
+from openai import OpenAI
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI Client with the API key from Streamlit secrets
+# Ensure the OpenAI API key is available
 try:
     openai_api_key = st.secrets["openai_api_key"]
+    client = OpenAI(api_key=openai_api_key)
 except KeyError:
     st.error("API key not found. Please add your OpenAI API key to Streamlit secrets.")
     st.stop()  # Stop the app if the API key isn't set up
 
-def call_chatgpt(prompt, model="gpt-4", max_tokens=150, temperature=0.3, retries=2):
+def call_chatgpt(prompt, model="gpt-4", max_tokens=800, temperature=0.3, retries=2):
+    """
+    Calls the OpenAI Chat API to get a completion.
+    """
     try:
         response = client.chat.completions.create(
             model=model,
@@ -28,8 +32,8 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=150, temperature=0.3, retries
             temperature=temperature,
         )
         logger.info(f"API Response: {response}")
-        return response.choices[0].message.content.strip()
-    except openai.OpenAIError as e:
+        return response.choices[0].message["content"].strip()
+    except Exception as e:
         st.error(f"An OpenAI error occurred: {e}")
         logger.error(f"OpenAIError: {e}")
         return ""
@@ -50,7 +54,6 @@ def stage4_write_up_themes(pets, transcript, retries=2):
             response_json = json.loads(response_text)
             return response_json  # Return parsed JSON if successful
         except json.JSONDecodeError:
-            # Log and retry parsing with modified max_tokens on the last retry
             if attempt < retries - 1:
                 st.warning("Retrying Stage 4 with adjusted parameters...")
                 logger.warning("Retrying Stage 4 with adjusted parameters due to JSON parsing error.")
