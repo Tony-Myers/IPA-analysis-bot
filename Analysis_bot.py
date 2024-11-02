@@ -16,9 +16,9 @@ except KeyError:
     st.error("API key not found. Please add your OpenAI API key to Streamlit secrets.")
     st.stop()  # Stop the app if the API key isn't set up
 
-def call_chatgpt(prompt, model="gpt-4", max_tokens=800, temperature=0.3, retries=2):
+def call_chatgpt(prompt, model="gpt-4", max_tokens=150, temperature=0.3, retries=2):
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
