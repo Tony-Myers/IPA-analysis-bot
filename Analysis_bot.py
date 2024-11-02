@@ -16,7 +16,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=800, temperature=0.3, retries
     Calls the OpenAI Chat API to get a completion.
     """
     try:
-    response = client.chat.completions.create(
+        response = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
