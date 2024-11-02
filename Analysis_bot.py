@@ -27,9 +27,9 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=800, temperature=0.3, retries
         )
         logger.info(f"API Response: {response}")
         return response.choices[0].message["content"].strip()
-    except openai.error.OpenAIError as e:
-        st.error(f"An OpenAI error occurred: {e}")
-        logger.error(f"OpenAIError: {e}")
+    except Exception as e:  # Use a general Exception for error handling
+        st.error(f"An error occurred: {e}")
+        logger.error(f"OpenAI Error: {e}")
         return ""
 
 def convert_to_markdown(data):
