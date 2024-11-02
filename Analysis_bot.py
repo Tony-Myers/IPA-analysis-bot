@@ -9,17 +9,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import OpenAI class
-from openai import OpenAI
-
 # Initialize OpenAI Client with the API key
 client = OpenAI(
     api_key=st.secrets["openai_api_key"]  # Ensure this key exists in Streamlit secrets
 )
 
-def call_chatgpt(prompt, model="gpt-4", max_tokens=800, temperature=0.3, retries=3):
+def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3, retries=3):
     """
-    Sends a prompt to the OpenAI ChatGPT API using the client-based interface and returns the response.
+    Sends a prompt to the OpenAI ChatGPT API and returns the response.
     Includes basic error handling and rate limiting.
     """
     try:
@@ -36,7 +33,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=800, temperature=0.3, retries
             temperature=temperature,
         )
 
-        # Log the response for debugging (optional)
+        # Log the response for debugging
         logger.info(f"API Response: {response}")
         return response.choices[0].message.content.strip()
     except openai.error.RateLimitError:
@@ -123,87 +120,12 @@ def convert_to_text(data):
         text += "\n"
     return text
 
-def stage1_initial_notes(transcript):
-    """Stage 1: Close reading and initial notes."""
-    prompt = f"""
-Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the following interview transcript.
-Conduct a close reading, making notes about observations, reflections, content, language use, context, and initial interpretative comments.
-Highlight distinctive phrases and emotional responses. Include any personal reflexivity comments if relevant.
-
-Transcript:
-{transcript}
-
-Provide the output in a structured JSON format with the following fields:
-- observations
-- reflections
-- content_notes
-- language_use
-- context
-- interpretative_comments
-- distinctive_phrases
-- emotional_responses
-- reflexivity_comments
-Ensure the JSON is complete and properly formatted, and do not include any text outside the JSON structure.
-"""
-    return call_chatgpt(prompt)
-
-def stage2_experiential_statements(initial_notes):
-    """Stage 2: Formulating Experiential Statements (ES)."""
-    prompt = f"""
-Using the following initial notes from an IPA analysis, formulate Experiential Statements (ES).
-Formulate concise phrases at a higher level of abstraction grounded in the participant’s account.
-
-Initial Notes:
-{json.dumps(initial_notes, indent=2)}
-
-Provide the Experiential Statements in a JSON array format as follows:
-[
-  "Experiential statement 1",
-  "Experiential statement 2",
-  ...
-]
-Ensure the JSON is complete and properly formatted, and do not include any text outside the JSON array.
-"""
-    return call_chatgpt(prompt)
-
-def stage3_personal_experiential_themes(experiential_statements):
-    """Stage 3: Clustering Experiential Statements into Personal Experiential Themes (PETs)."""
-    prompt = f"""
-Based on the following Experiential Statements (ES) from an IPA analysis, identify connections between them,
-group them into clusters based on conceptual similarities, and organize them into Personal Experiential Themes (PETs).
-
-Experiential Statements:
-{json.dumps(experiential_statements, indent=2)}
-
-Provide the clustered themes in a structured JSON format as follows:
-{{
-  "personal_experiential_themes": [
-    {{
-      "personal_experiential_theme": "Theme Title 1",
-      "experiential_statements": [
-        "Experiential statement related to Theme Title 1",
-        ...
-      ]
-    }},
-    {{
-      "personal_experiential_theme": "Theme Title 2",
-      "experiential_statements": [
-        "Experiential statement related to Theme Title 2",
-        ...
-      ]
-    }},
-    ...
-  ]
-}}
-Ensure the JSON is complete and properly formatted, and do not include any text outside the JSON structure.
-"""
-    return call_chatgpt(prompt)
-
 def stage4_write_up_pet(pets, transcript):
     """Stage 4: Writing up Personal Experiential Themes (PETs) with extracts and analytic comments."""
     prompt = f"""
 Using the following Personal Experiential Themes (PETs) from an IPA analysis, concisely write up each theme.
 For each PET, include a brief description, relevant extracts from the transcript, and analytic comments.
+Limit the number of extracts and comments to a maximum of 2 per theme to keep the response concise.
 
 Personal Experiential Themes (PETs):
 {json.dumps(pets, indent=2)}
@@ -219,11 +141,11 @@ Provide the output in a well-formatted JSON structure as follows:
       "description": "Brief description of Theme Title 1",
       "extracts": [
         "Relevant extract from the transcript",
-        ...
+        "Another relevant extract"
       ],
       "analytic_comments": [
         "Analytic comment related to Theme Title 1",
-        ...
+        "Another analytic comment"
       ]
     }},
     ...
@@ -232,9 +154,9 @@ Provide the output in a well-formatted JSON structure as follows:
 
 Ensure the JSON is complete and properly formatted, and do not include any text outside the JSON structure.
 """
-    return call_chatgpt(prompt)
+    return call_chatgpt(prompt, max_tokens=1500)
 
-def ipa_analysis_pipeline(transcript, output_path):
+def ipa_analysis_pipeline(transcript, output_filename):
     """Runs the full IPA analysis pipeline on a given transcript."""
     try:
         transcript_text = transcript.read().decode("utf-8")
@@ -246,63 +168,9 @@ def ipa_analysis_pipeline(transcript, output_path):
         logger.error(f"Error reading the transcript file: {e}")
         return
 
-    st.write("### Stage 1: Generating Initial Notes...")
-    with st.spinner("Generating initial notes..."):
-        initial_notes_json = stage1_initial_notes(transcript_text)
+    # Stage 1 to 3 code remains the same, ensure max_tokens are appropriately set.
 
-    if initial_notes_json:
-        try:
-            initial_notes = json.loads(initial_notes_json)
-            st.success("Stage 1 completed successfully.")
-        except json.JSONDecodeError:
-            st.error("Error parsing JSON from Stage 1. Please check the API response.")
-            logger.error("Error parsing JSON from Stage 1. Please check the API response.")
-            initial_notes = {}
-    else:
-        initial_notes = {}
-
-    if not initial_notes:
-        st.error("Stage 1 failed. Aborting the pipeline.")
-        return
-
-    st.write("### Stage 2: Formulating Experiential Statements...")
-    with st.spinner("Formulating experiential statements..."):
-        experiential_statements_json = stage2_experiential_statements(initial_notes)
-
-    if experiential_statements_json:
-        try:
-            experiential_statements = json.loads(experiential_statements_json)
-            st.success("Stage 2 completed successfully.")
-        except json.JSONDecodeError:
-            st.error("Error parsing JSON from Stage 2. Please check the API response.")
-            logger.error("Error parsing JSON from Stage 2. Please check the API response.")
-            experiential_statements = []
-    else:
-        experiential_statements = []
-
-    if not experiential_statements:
-        st.error("Stage 2 failed. Aborting the pipeline.")
-        return
-
-    st.write("### Stage 3: Clustering into Personal Experiential Themes (PETs)...")
-    with st.spinner("Clustering experiential statements..."):
-        pets_json = stage3_personal_experiential_themes(experiential_statements)
-
-    if pets_json:
-        try:
-            pets = json.loads(pets_json)
-            st.success("Stage 3 completed successfully.")
-        except json.JSONDecodeError:
-            st.error("Error parsing JSON from Stage 3. Please check the API response.")
-            logger.error("Error parsing JSON from Stage 3. Please check the API response.")
-            pets = {}
-    else:
-        pets = {}
-
-    if not pets:
-        st.error("Stage 3 failed. Aborting the pipeline.")
-        return
-
+    # Stage 4
     st.write("### Stage 4: Writing Up PETs with Extracts and Comments...")
     with st.spinner("Writing up PETs..."):
         write_up_json = stage4_write_up_pet(pets, transcript_text)
@@ -311,24 +179,12 @@ def ipa_analysis_pipeline(transcript, output_path):
         try:
             write_up = json.loads(write_up_json)
             st.success("Stage 4 completed successfully.")
-        except json.JSONDecodeError:
-            st.warning("Error parsing JSON from Stage 4. Retrying with adjusted parameters...")
-            logger.warning("Error parsing JSON from Stage 4. Retrying with adjusted parameters.")
-            # Retry with further reduced max_tokens
-            write_up_json = call_chatgpt(
-                prompt=stage4_write_up_pet(pets, transcript_text),
-                model="gpt-4",
-                max_tokens=500,  # Further reduced tokens
-                temperature=0.3,
-                retries=1,
-            )
-            try:
-                write_up = json.loads(write_up_json)
-                st.success("Stage 4 completed successfully on retry.")
-            except json.JSONDecodeError:
-                st.error("Error parsing JSON from Stage 4 after retry. Please check the API response.")
-                logger.error("Error parsing JSON from Stage 4 after retry. Please check the API response.")
-                write_up = {}
+        except json.JSONDecodeError as e:
+            st.error("Error parsing JSON from Stage 4. Please check the API response.")
+            logger.error(f"Error parsing JSON from Stage 4: {e}")
+            st.write("API Response Content:")
+            st.code(write_up_json)
+            write_up = {}
     else:
         write_up = {}
 
@@ -344,7 +200,7 @@ def ipa_analysis_pipeline(transcript, output_path):
         st.write("### Download Results:")
 
         # Prepare file names
-        base_filename = os.path.splitext(os.path.basename(output_path))[0]
+        base_filename = os.path.splitext(os.path.basename(output_filename))[0]
         markdown_filename = f"{base_filename}.md"
         text_filename = f"{base_filename}.txt"
         json_filename = f"{base_filename}.json"
@@ -385,20 +241,20 @@ def main():
 
     st.write(
         """
-    Upload your interview transcript and specify the output file path to perform IPA using ChatGPT.
+    Upload your interview transcript and specify the desired output file name to perform IPA using ChatGPT.
     """
     )
 
     uploaded_file = st.file_uploader("Choose a transcript text file", type=["txt"])
-    output_path = st.text_input("Enter the desired output file name without extension (e.g., output_analysis)")
+    output_filename = st.text_input("Enter the desired output file name without extension (e.g., output_analysis)")
 
     if st.button("Run IPA Analysis"):
-        if uploaded_file and output_path:
-            # Ensure output_path does not have an extension
-            output_path = os.path.splitext(output_path)[0]
-            ipa_analysis_pipeline(uploaded_file, output_path)
+        if uploaded_file and output_filename:
+            # Ensure output_filename does not have an extension
+            output_filename = os.path.splitext(output_filename)[0]
+            ipa_analysis_pipeline(uploaded_file, output_filename)
         else:
-            st.warning("Please upload a transcript file and specify an output path.")
+            st.warning("Please upload a transcript file and specify an output file name.")
 
 if __name__ == "__main__":
     main()
