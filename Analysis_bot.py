@@ -61,59 +61,67 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=800, temperature=0.3, retries
 def convert_to_markdown(data):
     """Converts the analysis data to Markdown format."""
     markdown = ""
-    for pet in data.get("personal_experiential_themes", []):
-        markdown += f"## {pet['personal_experiential_theme']}\n\n"
-        markdown += f"**Description:** {pet.get('description', 'N/A')}\n\n"
+    pets = data.get("personal_experiential_themes", [])
+    if not pets:
+        st.error("No Personal Experiential Themes found in the data.")
+        logger.error("No Personal Experiential Themes found in the data.")
+        return ""
+
+    for pet in pets:
+        pet_title = pet.get('personal_experiential_theme', 'Untitled Theme')
+        markdown += f"## {pet_title}\n\n"
+        description = pet.get('description', 'N/A')
+        markdown += f"**Description:** {description}\n\n"
+
+        extracts = pet.get("extracts", [])
         markdown += f"**Extracts:**\n"
-        for extract in pet.get("extracts", []):
-            markdown += f"- {extract}\n"
+        if extracts:
+            for extract in extracts:
+                markdown += f"- {extract}\n"
+        else:
+            markdown += "- No extracts provided.\n"
+
+        analytic_comments = pet.get("analytic_comments", [])
         markdown += "\n**Analytic Comments:**\n"
-        for comment in pet.get("analytic_comments", []):
-            markdown += f"- {comment}\n"
+        if analytic_comments:
+            for comment in analytic_comments:
+                markdown += f"- {comment}\n"
+        else:
+            markdown += "- No analytic comments provided.\n"
+
         markdown += "\n"
     return markdown
 
 def convert_to_text(data):
     """Converts the analysis data to plain text format."""
     text = ""
-    for pet in data.get("personal_experiential_themes", []):
-        text += f"Personal Experiential Theme (PET): {pet['personal_experiential_theme']}\n"
-        text += f"  Description: {pet.get('description', 'N/A')}\n"
+    pets = data.get("personal_experiential_themes", [])
+    if not pets:
+        st.error("No Personal Experiential Themes found in the data.")
+        logger.error("No Personal Experiential Themes found in the data.")
+        return ""
+
+    for pet in pets:
+        pet_title = pet.get('personal_experiential_theme', 'Untitled Theme')
+        text += f"Personal Experiential Theme (PET): {pet_title}\n"
+        description = pet.get('description', 'N/A')
+        text += f"  Description: {description}\n"
+        extracts = pet.get("extracts", [])
         text += f"  Extracts:\n"
-        for extract in pet.get("extracts", []):
-            text += f"    - {extract}\n"
+        if extracts:
+            for extract in extracts:
+                text += f"    - {extract}\n"
+        else:
+            text += "    - No extracts provided.\n"
+        analytic_comments = pet.get("analytic_comments", [])
         text += f"  Analytic Comments:\n"
-        for comment in pet.get("analytic_comments", []):
-            text += f"    - {comment}\n"
+        if analytic_comments:
+            for comment in analytic_comments:
+                text += f"    - {comment}\n"
+        else:
+            text += "    - No analytic comments provided.\n"
         text += "\n"
     return text
-
-def save_output(data, file_path, format="markdown"):
-    """Saves the data to a specified file format."""
-    try:
-        directory = os.path.dirname(file_path)
-        if directory and not os.path.exists(directory):
-            os.makedirs(directory)
-
-        if format == "json":
-            with open(file_path, "w", encoding="utf-8") as file:
-                json.dump(data, file, indent=2, ensure_ascii=False)
-        elif format == "markdown":
-            with open(file_path, "w", encoding="utf-8") as file:
-                markdown_content = convert_to_markdown(data)
-                file.write(markdown_content)
-        elif format == "text":
-            with open(file_path, "w", encoding="utf-8") as file:
-                text_content = convert_to_text(data)
-                file.write(text_content)
-        else:
-            st.error(f"Unsupported format: {format}")
-            return
-
-        st.success(f"IPA analysis complete. Results saved to {file_path}")
-    except Exception as e:
-        st.error(f"Failed to save the output file: {e}")
-        logger.error(f"Failed to save the output file: {e}")
 
 def stage1_initial_notes(transcript):
     """Stage 1: Close reading and initial notes."""
@@ -135,7 +143,7 @@ Provide the output in a structured JSON format with the following fields:
 - distinctive_phrases
 - emotional_responses
 - reflexivity_comments
-Ensure the JSON is complete and properly formatted.
+Ensure the JSON is complete and properly formatted, and do not include any text outside the JSON structure.
 """
     return call_chatgpt(prompt)
 
@@ -148,7 +156,12 @@ Formulate concise phrases at a higher level of abstraction grounded in the parti
 Initial Notes:
 {json.dumps(initial_notes, indent=2)}
 
-Provide the Experiential Statements in a JSON array format.
+Provide the Experiential Statements in a JSON array format as follows:
+[
+  "Experiential statement 1",
+  "Experiential statement 2",
+  ...
+]
 Ensure the JSON is complete and properly formatted, and do not include any text outside the JSON array.
 """
     return call_chatgpt(prompt)
@@ -162,9 +175,26 @@ group them into clusters based on conceptual similarities, and organize them int
 Experiential Statements:
 {json.dumps(experiential_statements, indent=2)}
 
-Provide the clustered themes in a structured JSON format with the following hierarchy:
-- personal_experiential_theme
-    - experiential_statements
+Provide the clustered themes in a structured JSON format as follows:
+{{
+  "personal_experiential_themes": [
+    {{
+      "personal_experiential_theme": "Theme Title 1",
+      "experiential_statements": [
+        "Experiential statement related to Theme Title 1",
+        ...
+      ]
+    }},
+    {{
+      "personal_experiential_theme": "Theme Title 2",
+      "experiential_statements": [
+        "Experiential statement related to Theme Title 2",
+        ...
+      ]
+    }},
+    ...
+  ]
+}}
 Ensure the JSON is complete and properly formatted, and do not include any text outside the JSON structure.
 """
     return call_chatgpt(prompt)
@@ -181,11 +211,24 @@ Personal Experiential Themes (PETs):
 Transcript:
 {transcript}
 
-Provide the output in a well-formatted JSON structure with these fields for each PET:
-- personal_experiential_theme
-    - description
-    - extracts
-    - analytic_comments
+Provide the output in a well-formatted JSON structure as follows:
+{{
+  "personal_experiential_themes": [
+    {{
+      "personal_experiential_theme": "Theme Title 1",
+      "description": "Brief description of Theme Title 1",
+      "extracts": [
+        "Relevant extract from the transcript",
+        ...
+      ],
+      "analytic_comments": [
+        "Analytic comment related to Theme Title 1",
+        ...
+      ]
+    }},
+    ...
+  ]
+}}
 
 Ensure the JSON is complete and properly formatted, and do not include any text outside the JSON structure.
 """
@@ -290,14 +333,12 @@ def ipa_analysis_pipeline(transcript, output_path):
         write_up = {}
 
     if write_up:
-        st.write("### Saving the Final Analysis to File...")
-        save_output(write_up, output_path, format="markdown")
         st.write("### Final Analysis:")
-        st.markdown(convert_to_markdown(write_up))
-        
-        # Convert data to desired formats
         markdown_content = convert_to_markdown(write_up)
-        text_content = convert_to_text(write_up)
+        if not markdown_content:
+            st.error("Failed to generate Markdown content.")
+            return
+        st.markdown(markdown_content)
 
         # Provide download buttons
         st.write("### Download Results:")
@@ -310,6 +351,7 @@ def ipa_analysis_pipeline(transcript, output_path):
 
         # Encode the contents
         markdown_bytes = markdown_content.encode("utf-8")
+        text_content = convert_to_text(write_up)
         text_bytes = text_content.encode("utf-8")
         json_bytes = json.dumps(write_up, indent=2).encode("utf-8")
 
@@ -348,7 +390,7 @@ def main():
     )
 
     uploaded_file = st.file_uploader("Choose a transcript text file", type=["txt"])
-    output_path = st.text_input("Enter the desired output file path without extension (e.g., results/output_analysis)")
+    output_path = st.text_input("Enter the desired output file name without extension (e.g., output_analysis)")
 
     if st.button("Run IPA Analysis"):
         if uploaded_file and output_path:
