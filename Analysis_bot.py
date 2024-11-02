@@ -32,14 +32,19 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=800, temperature=0.3):
             max_tokens=max_tokens,
             temperature=temperature,
         )
-        # Log the response for debugging (optional)
+# Log the response for debugging (optional)
         logger.info(f"API Response: {response}")
         return response.choices[0].message.content.strip()
     except openai.RateLimitError:
-        st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
-        logger.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
-        time.sleep(60)
-        return call_chatgpt(prompt, model, max_tokens, temperature)
+        if retries > 0:
+            st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
+            logger.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
+            time.sleep(60)
+            return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
+        else:
+            st.error("Rate limit exceeded. Please try again later.")
+            logger.error("Rate limit exceeded.")
+            return ""
     except openai.OpenAIError as e:
         st.error(f"An OpenAI error occurred: {e}")
         logger.error(f"OpenAIError: {e}")
@@ -49,17 +54,78 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=800, temperature=0.3):
         logger.error(f"Unexpected error: {e}")
         return ""
 
+def convert_to_markdown(data):
+    """Converts the analysis data to Markdown format."""
+    markdown = ""
+    for theme in data.get("superordinate_themes", []):
+        markdown += f"## {theme['superordinate_theme']}\n\n"
+        for subtheme in theme.get("subthemes", []):
+            markdown += f"### {subtheme['subtheme']}\n\n"
+            markdown += f"**Description:** {subtheme.get('description', 'N/A')}\n\n"
+            markdown += f"**Extracts:**\n"
+            for extract in subtheme.get("extracts", []):
+                markdown += f"- {extract}\n"
+            markdown += "\n**Analytic Comments:**\n"
+            for comment in subtheme.get("analytic_comments", []):
+                markdown += f"- {comment}\n"
+            markdown += "\n"
+    return markdown
+
+def convert_to_text(data):
+    """Converts the analysis data to plain text format."""
+    text = ""
+    for theme in data.get("superordinate_themes", []):
+        text += f"Superordinate Theme: {theme['superordinate_theme']}\n"
+        for subtheme in theme.get("subthemes", []):
+            text += f"  Subtheme: {subtheme['subtheme']}\n"
+            text += f"    Description: {subtheme.get('description', 'N/A')}\n"
+            text += f"    Extracts:\n"
+            for extract in subtheme.get("extracts", []):
+                text += f"      - {extract}\n"
+            text += f"    Analytic Comments:\n"
+            for comment in subtheme.get("analytic_comments", []):
+                text += f"      - {comment}\n"
+            text += "\n"
+    return text
+
+def save_output(data, file_path, format="json"):
+    """Saves the data to a specified file format."""
+    try:
+        directory = os.path.dirname(file_path)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory)
+        
+        if format == "json":
+            with open(file_path, 'w', encoding='utf-8') as file:
+                json.dump(data, file, indent=2, ensure_ascii=False)
+        elif format == "markdown":
+            with open(file_path, 'w', encoding='utf-8') as file:
+                markdown_content = convert_to_markdown(data)
+                file.write(markdown_content)
+        elif format == "text":
+            with open(file_path, 'w', encoding='utf-8') as file:
+                text_content = convert_to_text(data)
+                file.write(text_content)
+        else:
+            st.error(f"Unsupported format: {format}")
+            return
+        
+        st.success(f"IPA analysis complete. Results saved to {file_path}")
+    except Exception as e:
+        st.error(f"Failed to save the output file: {e}")
+        logger.error(f"Failed to save the output file: {e}")
+
 def stage1_initial_notes(transcript):
     """Stage 1: Close reading and initial notes."""
     prompt = f"""
-    I want you to perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the following interview transcript. 
-    This involves close reading of the transcript multiple times, making notes about observations, reflections, content, language use, context, and initial interpretative comments. 
+    Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the following interview transcript.
+    Conduct a close reading, making notes about observations, reflections, content, language use, context, and initial interpretative comments.
     Highlight distinctive phrases and emotional responses. Include any personal reflexivity comments if relevant.
 
     Transcript:
     {transcript}
 
-    Please provide your output in a structured JSON format with the following fields:
+    Provide the output in a structured JSON format with the following fields:
     - observations
     - reflections
     - content_notes
@@ -75,25 +141,26 @@ def stage1_initial_notes(transcript):
 def stage2_emergent_themes(initial_notes):
     """Stage 2: Transforming notes into emergent themes."""
     prompt = f"""
-    Using the following initial notes from an IPA analysis, transform them into emergent themes. 
+    Using the following initial notes from an IPA analysis, transform them into emergent themes.
     Formulate concise phrases at a higher level of abstraction grounded in the participant’s account.
 
     Initial Notes:
     {json.dumps(initial_notes, indent=2)}
 
-    Please provide the emergent themes in a JSON array format.
+    Provide the emergent themes in a JSON array format.
     """
     return call_chatgpt(prompt)
 
 def stage3_cluster_themes(emergent_themes):
     """Stage 3: Seeking relationships and clustering themes."""
     prompt = f"""
-    Based on the following emergent themes from an IPA analysis, identify connections between them, group them into clusters based on conceptual similarities, and organize them into superordinate themes and subthemes.
+    Based on the following emergent themes from an IPA analysis, identify connections between them,
+    group them into clusters based on conceptual similarities, and organize them into superordinate themes and subthemes.
 
     Emergent Themes:
     {json.dumps(emergent_themes, indent=2)}
 
-    Please provide the clustered themes in a structured JSON format with the following hierarchy:
+    Provide the clustered themes in a structured JSON format with the following hierarchy:
     - superordinate_theme
         - subtheme
     """
@@ -102,7 +169,8 @@ def stage3_cluster_themes(emergent_themes):
 def stage4_write_up_themes(clustered_themes, transcript):
     """Stage 4: Writing up themes with extracts and analytic comments."""
     prompt = f"""
-    Using the following clustered themes from an IPA analysis, write up each theme by describing it, providing relevant extracts from the transcript, and adding analytic comments.
+    Using the following clustered themes from an IPA analysis, concisely write up each theme.
+    For each theme, include a brief description, relevant extracts from the transcript, and analytic comments.
 
     Clustered Themes:
     {json.dumps(clustered_themes, indent=2)}
@@ -110,28 +178,16 @@ def stage4_write_up_themes(clustered_themes, transcript):
     Transcript:
     {transcript}
 
-    Please provide the write-up in a structured JSON format with the following fields for each theme:
+    Provide the output in a well-formatted JSON structure with these fields for each theme:
     - superordinate_theme
         - subtheme
             - description
             - extracts
             - analytic_comments
+
+    Ensure the JSON is complete and properly formatted.
     """
     return call_chatgpt(prompt)
-
-def save_output(data, file_path):
-    """Saves the data to a JSON file."""
-    try:
-        directory = os.path.dirname(file_path)
-        if directory and not os.path.exists(directory):
-            os.makedirs(directory)
-        
-        with open(file_path, 'w', encoding='utf-8') as file:
-            json.dump(data, file, indent=2, ensure_ascii=False)
-        st.success(f"IPA analysis complete. Results saved to {file_path}")
-    except Exception as e:
-        st.error(f"Failed to save the output file: {e}")
-        logger.error(f"Failed to save the output file: {e}")
 
 def ipa_analysis_pipeline(transcript, output_path):
     """Runs the full IPA analysis pipeline on a given transcript."""
@@ -211,37 +267,91 @@ def ipa_analysis_pipeline(transcript, output_path):
             write_up = json.loads(write_up_json)
             st.success("Stage 4 completed successfully.")
         except json.JSONDecodeError:
-            st.error("Error parsing JSON from Stage 4. Please check the API response.")
-            logger.error("Error parsing JSON from Stage 4. Please check the API response.")
-            write_up = {}
+            st.warning("Error parsing JSON from Stage 4. Retrying with adjusted parameters...")
+            logger.warning("Error parsing JSON from Stage 4. Retrying with adjusted parameters.")
+            # Retry with further reduced max_tokens
+            write_up_json = call_chatgpt(
+                prompt=stage4_write_up_themes(clustered_themes, transcript_text),
+                model="gpt-4",
+                max_tokens=800,  # Further reduced tokens
+                temperature=0.3,
+                retries=1
+            )
+            try:
+                write_up = json.loads(write_up_json)
+                st.success("Stage 4 completed successfully on retry.")
+            except json.JSONDecodeError:
+                st.error("Error parsing JSON from Stage 4 after retry. Please check the API response.")
+                logger.error("Error parsing JSON from Stage 4 after retry. Please check the API response.")
+                write_up = {}
     else:
         write_up = {}
     
     if write_up:
         st.write("### Saving the Final Analysis to File...")
-        save_output(write_up, output_path)
+        save_output(write_up, output_path, format="json")
         st.write("### Final Analysis:")
         st.json(write_up)
+        
+        # Convert data to desired formats
+        markdown_content = convert_to_markdown(write_up)
+        text_content = convert_to_text(write_up)
+        
+        # Provide download buttons
+        st.write("### Download Results:")
+        
+        # Prepare file names
+        base_filename = os.path.splitext(os.path.basename(output_path))[0]
+        json_filename = f"{base_filename}.json"
+        markdown_filename = f"{base_filename}.md"
+        text_filename = f"{base_filename}.txt"
+        
+        # Encode the contents
+        json_bytes = json.dumps(write_up, indent=2).encode('utf-8')
+        markdown_bytes = markdown_content.encode('utf-8')
+        text_bytes = text_content.encode('utf-8')
+        
+        # Create download buttons
+        st.download_button(
+            label="Download JSON",
+            data=json_bytes,
+            file_name=json_filename,
+            mime="application/json"
+        )
+        
+        st.download_button(
+            label="Download Markdown",
+            data=markdown_bytes,
+            file_name=markdown_filename,
+            mime="text/markdown"
+        )
+        
+        st.download_button(
+            label="Download Text",
+            data=text_bytes,
+            file_name=text_filename,
+            mime="text/plain"
+        )
     else:
         st.error("Stage 4 failed. Analysis incomplete.")
 
-# Streamlit App Layout
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool")
 
     st.write("""
-    Upload your interview transcript and specify the output JSON file path to perform IPA using ChatGPT.
+    Upload your interview transcript and specify the output file path to perform IPA using ChatGPT.
     """)
 
     uploaded_file = st.file_uploader("Choose a transcript text file", type=["txt"])
-    output_path = st.text_input("Enter the desired output JSON file path (e.g., results/output_analysis.json)")
+    output_path = st.text_input("Enter the desired output file path without extension (e.g., results/output_analysis)")
 
     if st.button("Run IPA Analysis"):
         if uploaded_file and output_path:
+            # Ensure output_path does not have an extension
+            output_path = os.path.splitext(output_path)[0]
             ipa_analysis_pipeline(uploaded_file, output_path)
         else:
             st.warning("Please upload a transcript file and specify an output path.")
 
 if __name__ == "__main__":
     main()
-
