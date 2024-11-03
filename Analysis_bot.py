@@ -1,5 +1,6 @@
 import streamlit as st
 import openai
+from openai.error import RateLimitError, OpenAIError
 import json
 import time
 import os
@@ -9,10 +10,11 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI Client with the API key
-client = OpenAI(
-    api_key=st.secrets["openai_api_key"]  # Ensure this key exists in Streamlit secrets
-)
+# Initialize OpenAI API with the API key
+openai.api_key = st.secrets["openai_api_key"]  # Ensure this key exists in Streamlit secrets
+
+# Assign client to openai
+client = openai
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3, retries=3):
     """
@@ -35,7 +37,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3, retrie
         # Log the response for debugging
         logger.info(f"API Response: {response}")
         return response.choices[0].message.content.strip()
-    except openai.error.RateLimitError:
+    except RateLimitError:
         if retries > 0:
             st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
             logger.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
@@ -45,7 +47,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3, retrie
             st.error("Rate limit exceeded. Please try again later.")
             logger.error("Rate limit exceeded.")
             return ""
-    except openai.error.OpenAIError as e:
+    except OpenAIError as e:
         st.error(f"An OpenAI error occurred: {e}")
         logger.error(f"OpenAIError: {e}")
         return ""
