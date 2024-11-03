@@ -22,7 +22,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
     Includes error handling and rate limiting.
     """
     try:
-        response = openai.ChatCompletion.create(
+        response = client.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
@@ -304,54 +304,4 @@ def ipa_analysis_pipeline(transcript, output_path):
         base_filename = os.path.splitext(os.path.basename(output_path))[0]
         json_filename = f"{base_filename}.json"
         markdown_filename = f"{base_filename}.md"
-        text_filename = f"{base_filename}.txt"
-        
-        # Encode the contents
-        json_bytes = json.dumps(write_up, indent=2).encode('utf-8')
-        markdown_bytes = markdown_content.encode('utf-8')
-        text_bytes = text_content.encode('utf-8')
-        
-        # Create download buttons
-        st.download_button(
-            label="Download JSON",
-            data=json_bytes,
-            file_name=json_filename,
-            mime="application/json"
-        )
-        
-        st.download_button(
-            label="Download Markdown",
-            data=markdown_bytes,
-            file_name=markdown_filename,
-            mime="text/markdown"
-        )
-        
-        st.download_button(
-            label="Download Text",
-            data=text_bytes,
-            file_name=text_filename,
-            mime="text/plain"
-        )
-    else:
-        st.error("Stage 4 failed. Analysis incomplete.")
-
-def main():
-    st.title("Interpretative Phenomenological Analysis (IPA) Tool")
-
-    st.write("""
-    Upload your interview transcript and specify the output file path to perform IPA using ChatGPT.
-    """)
-
-    uploaded_file = st.file_uploader("Choose a transcript text file", type=["txt"])
-    output_path = st.text_input("Enter the desired output file path without extension (e.g., results/output_analysis)")
-
-    if st.button("Run IPA Analysis"):
-        if uploaded_file and output_path:
-            # Ensure output_path does not have an extension
-            output_path = os.path.splitext(output_path)[0]
-            ipa_analysis_pipeline(uploaded_file, output_path)
-        else:
-            st.warning("Please upload a transcript file and specify an output path.")
-
-if __name__ == "__main__":
-    main()
+        text_filena
