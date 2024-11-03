@@ -28,7 +28,6 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
         client = OpenAI(
     # Defaults to os.environ.get("OPENAI_API_KEY")
     # Otherwise use: api_key="Your_API_Key",
-)
     reponse = client.chat.completions.create(
             model=model,
             messages=[
