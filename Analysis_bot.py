@@ -9,20 +9,21 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI Client with the API key from Streamlit secrets
-try:
-    openai.api_key = st.secrets["openai_api_key"]
-except KeyError:
-    st.error('OpenAI API key not found in secrets. Please add "openai_api_key" to your secrets.')
-    st.stop()
+# Import OpenAI class
+from openai import OpenAI
 
-def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retries=2):
+# Initialize OpenAI Client with the API key from Streamlit secrets
+client = OpenAI(
+    api_key=st.secrets["openai_api_key"]  # Ensure this key exists in .streamlit/secrets.toml or Streamlit Cloud secrets
+)
+
+def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3):
     """
     Sends a prompt to the OpenAI ChatGPT API using the client-based interface and returns the response.
-    Includes error handling and rate limiting.
+    Includes basic error handling and rate limiting.
     """
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
@@ -30,21 +31,15 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
             ],
             max_tokens=max_tokens,
             temperature=temperature,
-            stop=["}"]  # Ensures the JSON response is properly terminated
         )
         # Log the response for debugging (optional)
         logger.info(f"API Response: {response}")
         return response.choices[0].message.content.strip()
     except openai.RateLimitError:
-        if retries > 0:
-            st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
-            logger.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
-            time.sleep(60)
-            return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
-        else:
-            st.error("Rate limit exceeded. Please try again later.")
-            logger.error("Rate limit exceeded.")
-            return ""
+        st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
+        logger.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
+        time.sleep(60)
+        return call_chatgpt(prompt, model, max_tokens, temperature)
     except openai.OpenAIError as e:
         st.error(f"An OpenAI error occurred: {e}")
         logger.error(f"OpenAIError: {e}")
@@ -57,14 +52,14 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
 def stage1_initial_notes(transcript):
     """Stage 1: Close reading and initial notes."""
     prompt = f"""
-    Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the following interview transcript.
-    Conduct a close reading, making notes about observations, reflections, content, language use, context, and initial interpretative comments.
+    I want you to perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the following interview transcript. 
+    This involves close reading of the transcript multiple times, making notes about observations, reflections, content, language use, context, and initial interpretative comments. 
     Highlight distinctive phrases and emotional responses. Include any personal reflexivity comments if relevant.
 
     Transcript:
     {transcript}
 
-    Provide the output in a structured JSON format with the following fields:
+    Please provide your output in a structured JSON format with the following fields:
     - observations
     - reflections
     - content_notes
@@ -80,26 +75,25 @@ def stage1_initial_notes(transcript):
 def stage2_emergent_themes(initial_notes):
     """Stage 2: Transforming notes into emergent themes."""
     prompt = f"""
-    Using the following initial notes from an IPA analysis, transform them into emergent themes.
+    Using the following initial notes from an IPA analysis, transform them into emergent themes. 
     Formulate concise phrases at a higher level of abstraction grounded in the participant’s account.
 
     Initial Notes:
     {json.dumps(initial_notes, indent=2)}
 
-    Provide the emergent themes in a JSON array format.
+    Please provide the emergent themes in a JSON array format.
     """
     return call_chatgpt(prompt)
 
 def stage3_cluster_themes(emergent_themes):
     """Stage 3: Seeking relationships and clustering themes."""
     prompt = f"""
-    Based on the following emergent themes from an IPA analysis, identify connections between them,
-    group them into clusters based on conceptual similarities, and organize them into superordinate themes and subthemes.
+    Based on the following emergent themes from an IPA analysis, identify connections between them, group them into clusters based on conceptual similarities, and organize them into superordinate themes and subthemes.
 
     Emergent Themes:
     {json.dumps(emergent_themes, indent=2)}
 
-    Provide the clustered themes in a structured JSON format with the following hierarchy:
+    Please provide the clustered themes in a structured JSON format with the following hierarchy:
     - superordinate_theme
         - subtheme
     """
@@ -108,8 +102,7 @@ def stage3_cluster_themes(emergent_themes):
 def stage4_write_up_themes(clustered_themes, transcript):
     """Stage 4: Writing up themes with extracts and analytic comments."""
     prompt = f"""
-    Using the following clustered themes from an IPA analysis, concisely write up each theme.
-    For each theme, include a brief description, relevant extracts from the transcript, and analytic comments.
+    Using the following clustered themes from an IPA analysis, write up each theme by describing it, providing relevant extracts from the transcript, and adding analytic comments.
 
     Clustered Themes:
     {json.dumps(clustered_themes, indent=2)}
@@ -117,14 +110,12 @@ def stage4_write_up_themes(clustered_themes, transcript):
     Transcript:
     {transcript}
 
-    Provide the output in a well-formatted JSON structure with these fields for each theme:
+    Please provide the write-up in a structured JSON format with the following fields for each theme:
     - superordinate_theme
         - subtheme
             - description
             - extracts
             - analytic_comments
-
-    Ensure the JSON is complete and properly formatted.
     """
     return call_chatgpt(prompt)
 
@@ -220,23 +211,9 @@ def ipa_analysis_pipeline(transcript, output_path):
             write_up = json.loads(write_up_json)
             st.success("Stage 4 completed successfully.")
         except json.JSONDecodeError:
-            st.warning("Error parsing JSON from Stage 4. Retrying with adjusted parameters...")
-            logger.warning("Error parsing JSON from Stage 4. Retrying with adjusted parameters.")
-            # Retry with reduced max_tokens
-            write_up_json = call_chatgpt(
-                prompt=stage4_write_up_themes(clustered_themes, transcript_text),
-                model="gpt-4",
-                max_tokens=800,  # Further reduced tokens
-                temperature=0.3,
-                retries=1
-            )
-            try:
-                write_up = json.loads(write_up_json)
-                st.success("Stage 4 completed successfully on retry.")
-            except json.JSONDecodeError:
-                st.error("Error parsing JSON from Stage 4 after retry. Please check the API response.")
-                logger.error("Error parsing JSON from Stage 4 after retry. Please check the API response.")
-                write_up = {}
+            st.error("Error parsing JSON from Stage 4. Please check the API response.")
+            logger.error("Error parsing JSON from Stage 4. Please check the API response.")
+            write_up = {}
     else:
         write_up = {}
     
