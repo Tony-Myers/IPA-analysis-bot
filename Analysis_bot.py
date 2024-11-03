@@ -20,8 +20,6 @@ except KeyError:
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retries=2):
     """
-    Sends a prompt to the OpenAI ChatGPT API and returns the response.
-    Includes error handling and rate limiting.
     """
     try:
 
@@ -37,7 +35,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
             max_tokens=max_tokens,
             temperature=temperature,
             stop=["}"]  # Ensures the JSON response is properly terminated
-        )
+        ))
         # Log the response for debugging (optional)
         logger.info(f"API Response: {response}")
         return response.choices[0].message.content.strip()
