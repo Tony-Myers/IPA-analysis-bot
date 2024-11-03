@@ -4,6 +4,7 @@ import json
 import time
 import os
 import logging
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -226,7 +227,7 @@ def convert_analysis_to_markdown(analysis):
 
     return markdown
 
-def ipa_analysis_pipeline(transcripts, output_filename):
+def ipa_analysis_pipeline(transcripts):
     """Runs the full IPA analysis pipeline on given transcripts."""
     participant_pets = []
     participant_ids = []
@@ -242,7 +243,7 @@ def ipa_analysis_pipeline(transcripts, output_filename):
             participant_id = f"P{idx+1}"
             participant_ids.append(participant_id)
 
-            with st.expander(f"View Transcript {participant_id} ({transcript.name})"):
+            with st.expander(f"View Transcript {participant_id} ({transcript.name})", expanded=True):
                 st.text(transcript_text)
 
             # Process each transcript to generate PETs
@@ -302,15 +303,16 @@ def ipa_analysis_pipeline(transcripts, output_filename):
     # Provide download button for Markdown
     st.write("### Download Results:")
 
-    # Prepare file name
-    markdown_filename = f"{output_filename}.md"
+    # Generate a default filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    markdown_filename = f"ipa_analysis_{timestamp}.md"
 
     # Encode the content
     markdown_bytes = markdown_content.encode("utf-8")
 
     # Create download button
     st.download_button(
-        label="Download Markdown",
+        label="Download Analysis as Markdown",
         data=markdown_bytes,
         file_name=markdown_filename,
         mime="text/markdown",
@@ -321,20 +323,17 @@ def main():
 
     st.write(
         """
-        Upload your interview transcripts and specify the desired output file name to perform IPA using ChatGPT.
+        Upload your interview transcripts to perform IPA using ChatGPT.
         """
     )
 
     uploaded_files = st.file_uploader("Choose transcript text files", type=["txt"], accept_multiple_files=True)
-    output_filename = st.text_input("Enter the desired output file name without extension (e.g., output_analysis)")
 
     if st.button("Run IPA Analysis"):
-        if uploaded_files and output_filename:
-            # Ensure output_filename does not have an extension
-            output_filename = os.path.splitext(output_filename)[0]
-            ipa_analysis_pipeline(uploaded_files, output_filename)
+        if uploaded_files:
+            ipa_analysis_pipeline(uploaded_files)
         else:
-            st.warning("Please upload at least one transcript file and specify an output file name.")
+            st.warning("Please upload at least one transcript file.")
 
 if __name__ == "__main__":
     main()
