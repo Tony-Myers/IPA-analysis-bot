@@ -1,6 +1,5 @@
 import streamlit as st
 import openai
-from openai.error import RateLimitError, OpenAIError
 import json
 import time
 import os
@@ -10,11 +9,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI API with the API key
-openai.api_key = st.secrets["openai_api_key"]  # Ensure this key exists in Streamlit secrets
-
-# Assign client to openai
-client = openai
+# Initialize OpenAI Client with the API key
+client = OpenAI(
+    api_key=st.secrets["openai_api_key"]  # Ensure this key exists in Streamlit secrets
+)
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3, retries=3):
     """
@@ -37,7 +35,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3, retrie
         # Log the response for debugging
         logger.info(f"API Response: {response}")
         return response.choices[0].message.content.strip()
-    except RateLimitError:
+    except openai.error.RateLimitError:
         if retries > 0:
             st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
             logger.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
@@ -47,7 +45,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3, retrie
             st.error("Rate limit exceeded. Please try again later.")
             logger.error("Rate limit exceeded.")
             return ""
-    except OpenAIError as e:
+    except openai.error.OpenAIError as e:
         st.error(f"An OpenAI error occurred: {e}")
         logger.error(f"OpenAIError: {e}")
         return ""
@@ -56,258 +54,217 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3, retrie
         logger.error(f"Unexpected error: {e}")
         return ""
 
-def generate_pets(transcript, participant_id):
-    """
-    Processes a single transcript to generate PETs.
-    """
+def generate_pets(participant_id, transcript_text):
+    """Generates Personal Experiential Themes (PETs) for a participant."""
     prompt = f"""
-You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA).
+As an expert in Interpretative Phenomenological Analysis (IPA), please perform an analysis on the following interview transcript for participant {participant_id}.
 
-Analyze the following interview transcript from participant {participant_id} to generate Personal Experiential Themes (PETs).
+Process:
+- Make initial notes or comments.
+- Create experiential statements – refine notes into assertions.
+- Develop Personal Experiential Themes (PETs) – trends that reflect the commonalities – conceptual, theoretical, semantic, practical, etc. – by clustering experiential statements.
+- Review and refine the PETs.
 
-Follow the IPA analysis process:
-- Make initial notes or comments
-- Create experiential statements
-- Develop personal experiential themes (PETs) by clustering experiential statements
-- Review and refine the PETs
-
-For each PET, provide:
-- PET title (name the PET appropriately, reflecting its characteristics)
-- Brief description
-- Short relevant sections of participant quotes to illustrate the PET (maximum of 2 quotes per PET)
-- Attribute each quote to the participant (e.g., {participant_id})
+When naming PETs, give clusters of experiential statements a title that describes their characteristics. PET names or labels should be data and cluster driven.
 
 Provide the output in a well-formatted JSON structure as follows:
 {{
-  "participant_id": "{participant_id}",
-  "pets": [
-    {{
-      "personal_experiential_theme": "PET Title",
-      "description": "Brief description of the PET",
-      "quotes": [
-        "Quote 1",
-        "Quote 2"
-      ]
-    }},
-    ...
-  ]
-}}
-
-Ensure the JSON is complete and properly formatted, and do not include any text outside the JSON structure.
-
-Transcript:
-{transcript}
-"""
-    # Call the OpenAI API
-    response = call_chatgpt(prompt, max_tokens=1500)
-    return response
-
-def generate_gets(all_pets):
-    """
-    Processes all PETs to generate GETs.
-    """
-    pets_json = json.dumps(all_pets, indent=2)
-
-    prompt = f"""
-You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA).
-
-Using the Personal Experiential Themes (PETs) from multiple participants, identify Group Experiential Themes (GETs).
-
-Follow the IPA analysis process:
-- Working with PETs, create group experiential themes (GETs) by looking across individual cases for patterns of convergence and divergence.
-
-For each GET, provide:
-- GET title (name the GET appropriately, reflecting shared and unique features of the experience across participants)
-- Brief description
-- Sub-themes within the GET (if applicable)
-- Short relevant sections of participant quotes to illustrate the GET (maximum of 2 quotes per GET)
-- Attribute each quote to the participant (e.g., P1, P2, etc.)
-
-Provide the output in a well-formatted JSON structure as follows:
-{{
-  "group_experiential_themes": [
-    {{
-      "group_experiential_theme": "GET Title",
-      "description": "Brief description of the GET",
-      "subthemes": [
+    "participant_id": "{participant_id}",
+    "pets": [
         {{
-          "subtheme_title": "Subtheme Title",
-          "description": "Brief description of the subtheme",
-          "quotes": [
-            "Quote 1",
-            "Quote 2"
-          ],
-          "participants": ["P1", "P2"]
+            "pet_title": "Title of PET 1",
+            "description": "Brief description of PET 1",
+            "quotes": [
+                "Short relevant quote from participant"
+            ]
         }},
         ...
-      ],
-      "quotes": [
-        "Quote 1",
-        "Quote 2"
-      ],
-      "participants": ["P1", "P2", "P3"]
-    }},
-    ...
-  ]
+    ]
 }}
 
+Ensure that the quotes are attributed to the participant (e.g., '{participant_id}' in brackets after the quote).
+
+Transcript:
+{transcript_text}
+
 Ensure the JSON is complete and properly formatted, and do not include any text outside the JSON structure.
-
-Personal Experiential Themes (PETs) from participants:
-{pets_json}
 """
-    # Call the OpenAI API
-    response = call_chatgpt(prompt, max_tokens=1500)
-    return response
+    return call_chatgpt(prompt, max_tokens=3000)
 
-def convert_to_markdown_pets_and_gets(all_pets, get_data):
-    """Converts the PETs and GETs data to Markdown format."""
-    markdown = "# Interpretative Phenomenological Analysis (IPA) Report\n\n"
+def generate_gets(all_pets):
+    """Generates Group Experiential Themes (GETs) by analyzing PETs across participants."""
+    prompt = f"""
+As an expert in Interpretative Phenomenological Analysis (IPA), please perform a cross-case analysis on the following Personal Experiential Themes (PETs) to develop Group Experiential Themes (GETs).
 
-    # Include PETs for each participant
-    for pet_data in all_pets:
-        participant_id = pet_data.get("participant_id", "Unknown Participant")
-        pets = pet_data.get("pets", [])
+Process:
+- Working with PETs from each participant, create Group Experiential Themes (GETs) by looking across individual cases for patterns of convergence and divergence.
+- GETs should highlight the shared and unique features of the experience across the participants.
+- When naming GETs, choose a label that captures each GET overall. Avoid using quotes from individual participants in the GET titles to prevent imposing one participant's experience onto others.
+
+Provide the output in a well-formatted JSON structure as follows:
+{{
+    "gets": [
+        {{
+            "get_title": "Title of GET 1",
+            "description": "Brief description of GET 1",
+            "subthemes": [
+                {{
+                    "subtheme_title": "Title of Subtheme",
+                    "participants": ["P1", "P2", ...],
+                    "quotes": [
+                        {{
+                            "participant_id": "P1",
+                            "quote": "Relevant quote from participant"
+                        }},
+                        ...
+                    ]
+                }},
+                ...
+            ]
+        }},
+        ...
+    ]
+}}
+
+Use quotes to illustrate each GET and subtheme, and attribute quotes to participants (e.g., 'P1').
+
+Personal Experiential Themes (PETs):
+{json.dumps(all_pets, indent=2)}
+
+Ensure the JSON is complete and properly formatted, and do not include any text outside the JSON structure.
+"""
+    return call_chatgpt(prompt, max_tokens=4000)
+
+def generate_final_report(all_pets, gets):
+    """Generates the final report including PETs and GETs in Markdown format."""
+    markdown = "# Interpretative Phenomenological Analysis Report\n\n"
+
+    # Include PETs per participant
+    for participant_id, pet_data in all_pets.items():
+        markdown += f"## Personal Experiential Themes for {participant_id}\n\n"
+        pets = pet_data.get('pets', [])
         if not pets:
-            st.error(f"No PETs found for {participant_id}.")
-            logger.error(f"No PETs found for {participant_id}.")
+            markdown += "No Personal Experiential Themes found.\n\n"
             continue
-        markdown += f"## Personal Experiential Themes (PETs) for {participant_id}\n\n"
         for pet in pets:
-            pet_title = pet.get('personal_experiential_theme', 'Untitled Theme')
+            pet_title = pet.get('pet_title', 'Untitled Theme')
             markdown += f"### {pet_title}\n\n"
             description = pet.get('description', 'N/A')
             markdown += f"**Description:** {description}\n\n"
             quotes = pet.get('quotes', [])
-            markdown += f"**Quotes from {participant_id}:**\n"
             if quotes:
+                markdown += "**Quotes:**\n"
                 for quote in quotes:
-                    markdown += f"> \"{quote}\"  \n"
+                    markdown += f"> {quote} ({participant_id})\n\n"
             else:
-                markdown += "> No quotes provided.\n"
-            markdown += "\n"
+                markdown += "No quotes provided.\n\n"
 
     # Include GETs
-    group_experiential_themes = get_data.get("group_experiential_themes", [])
-    if not group_experiential_themes:
-        st.error("No Group Experiential Themes (GETs) found.")
-        logger.error("No GETs found.")
+    markdown += "## Group Experiential Themes\n\n"
+    gets_list = gets.get('gets', [])
+    if not gets_list:
+        markdown += "No Group Experiential Themes found.\n\n"
     else:
-        markdown += "## Group Experiential Themes (GETs)\n\n"
-        for get in group_experiential_themes:
-            get_title = get.get('group_experiential_theme', 'Untitled GET')
+        for get in gets_list:
+            get_title = get.get('get_title', 'Untitled GET')
             markdown += f"### {get_title}\n\n"
             description = get.get('description', 'N/A')
             markdown += f"**Description:** {description}\n\n"
-            quotes = get.get('quotes', [])
-            markdown += f"**Quotes from Participants:**\n"
-            if quotes:
-                for quote in quotes:
-                    markdown += f"> \"{quote}\"  \n"
-            else:
-                markdown += "> No quotes provided.\n"
-            markdown += "\n"
-            # Include subthemes if any
             subthemes = get.get('subthemes', [])
-            if subthemes:
-                for subtheme in subthemes:
-                    subtheme_title = subtheme.get('subtheme_title', 'Untitled Subtheme')
-                    markdown += f"#### Subtheme: {subtheme_title}\n\n"
-                    sub_description = subtheme.get('description', 'N/A')
-                    markdown += f"**Description:** {sub_description}\n\n"
-                    sub_quotes = subtheme.get('quotes', [])
-                    participants = subtheme.get('participants', [])
-                    participant_str = ', '.join(participants)
-                    markdown += f"**Quotes from Participants ({participant_str}):**\n"
-                    if sub_quotes:
-                        for quote in sub_quotes:
-                            markdown += f"> \"{quote}\"  \n"
-                    else:
-                        markdown += "> No quotes provided.\n"
-                    markdown += "\n"
-
+            for subtheme in subthemes:
+                subtheme_title = subtheme.get('subtheme_title', 'Untitled Subtheme')
+                participants = subtheme.get('participants', [])
+                participants_str = ', '.join(participants)
+                markdown += f"#### {subtheme_title} (Participants: {participants_str})\n\n"
+                quotes = subtheme.get('quotes', [])
+                if quotes:
+                    markdown += "**Quotes:**\n"
+                    for quote_data in quotes:
+                        participant_id = quote_data.get('participant_id', '')
+                        quote = quote_data.get('quote', '')
+                        markdown += f"> {quote} ({participant_id})\n\n"
+                else:
+                    markdown += "No quotes provided.\n\n"
     return markdown
 
-def ipa_analysis_pipeline(transcripts, output_filename):
-    """Runs the full IPA analysis pipeline on given transcripts."""
-
-    transcripts_text = {}
-    participant_ids = []
-    all_pets = []
-    for idx, transcript_file in enumerate(transcripts):
+def ipa_analysis_pipeline(uploaded_files):
+    """Runs the full IPA analysis pipeline on the given transcripts."""
+    transcripts = {}
+    for idx, file in enumerate(uploaded_files):
         participant_id = f"P{idx+1}"
-        participant_ids.append(participant_id)
         try:
-            transcript_content = transcript_file.read().decode("utf-8")
-            if not transcript_content.strip():
-                st.error(f"The uploaded transcript file {transcript_file.name} is empty.")
+            transcript_text = file.read().decode("utf-8")
+            if not transcript_text.strip():
+                st.error(f"The uploaded transcript file {file.name} is empty.")
                 return
-            transcripts_text[participant_id] = transcript_content
+            transcripts[participant_id] = transcript_text
         except Exception as e:
-            st.error(f"Error reading the transcript file {transcript_file.name}: {e}")
-            logger.error(f"Error reading the transcript file {transcript_file.name}: {e}")
+            st.error(f"Error reading the transcript file {file.name}: {e}")
+            logger.error(f"Error reading the transcript file {file.name}: {e}")
             return
-        # Display the transcript in an expander
-        with st.expander(f"Transcript for {participant_id} ({transcript_file.name})"):
-            st.text(transcript_content)
 
-    # For each participant, generate PETs
+    # Now, process each transcript individually to generate PETs
     st.write("### Generating Personal Experiential Themes (PETs) for each participant...")
-    for participant_id in participant_ids:
+    all_pets = {}
+    for participant_id, transcript_text in transcripts.items():
         st.write(f"Processing {participant_id}...")
         with st.spinner(f"Generating PETs for {participant_id}..."):
-            pet_response = generate_pets(transcripts_text[participant_id], participant_id)
-            if pet_response:
+            pet_json = generate_pets(participant_id, transcript_text)
+            if pet_json:
                 try:
-                    pet_data = json.loads(pet_response)
+                    pets = json.loads(pet_json)
+                    all_pets[participant_id] = pets
                     st.success(f"Generated PETs for {participant_id}.")
-                    all_pets.append(pet_data)
                 except json.JSONDecodeError as e:
-                    st.error(f"Error parsing JSON for {participant_id}. Please check the API response.")
+                    st.error(f"Error parsing JSON for {participant_id}.")
                     logger.error(f"Error parsing JSON for {participant_id}: {e}")
                     st.write("API Response Content:")
-                    st.code(pet_response)
+                    st.code(pet_json)
             else:
                 st.error(f"Failed to generate PETs for {participant_id}.")
-                return
 
-    # Generate GETs based on all PETs
+    # After generating PETs for all participants, generate GETs
     st.write("### Generating Group Experiential Themes (GETs)...")
     with st.spinner("Generating GETs..."):
-        get_response = generate_gets(all_pets)
-        if get_response:
+        get_json = generate_gets(all_pets)
+        if get_json:
             try:
-                get_data = json.loads(get_response)
+                gets = json.loads(get_json)
                 st.success("Generated GETs.")
             except json.JSONDecodeError as e:
-                st.error("Error parsing JSON for GETs. Please check the API response.")
+                st.error("Error parsing JSON for GETs.")
                 logger.error(f"Error parsing JSON for GETs: {e}")
                 st.write("API Response Content:")
-                st.code(get_response)
-                get_data = {}
+                st.code(get_json)
         else:
             st.error("Failed to generate GETs.")
-            return
 
-    # Prepare final analysis report including PETs and GETs
+    # Now, compile the final report including both PETs and GETs
     st.write("### Final Analysis:")
-    markdown_content = convert_to_markdown_pets_and_gets(all_pets, get_data)
+    markdown_content = generate_final_report(all_pets, gets)
     if not markdown_content:
         st.error("Failed to generate Markdown content.")
         return
-    st.markdown(markdown_content)
 
-    # Provide download button for markdown
+    # Keep the results visible until the user decides to close them
+    if 'show_results' not in st.session_state:
+        st.session_state['show_results'] = True
+
+    if st.session_state['show_results']:
+        st.markdown(markdown_content)
+        if st.button("Hide Results"):
+            st.session_state['show_results'] = False
+    else:
+        if st.button("Show Results"):
+            st.session_state['show_results'] = True
+
+    # Provide download button for markdown file only
     st.write("### Download Results:")
-    # Prepare file name
-    markdown_filename = f"{output_filename}.md"
-    # Encode the content
     markdown_bytes = markdown_content.encode("utf-8")
-    # Create download button
     st.download_button(
-        label="Download Markdown",
+        label="Download Analysis as Markdown",
         data=markdown_bytes,
-        file_name=markdown_filename,
+        file_name="ipa_analysis.md",
         mime="text/markdown",
     )
 
@@ -316,26 +273,21 @@ def main():
 
     st.write(
         """
-        Upload your interview transcripts (one per participant) and specify the desired output file name to perform IPA using ChatGPT.
+        Upload your interview transcripts to perform IPA using ChatGPT.
         """
     )
 
     uploaded_files = st.file_uploader(
-        "Choose transcript text files (one per participant)",
+        "Choose transcript text files",
         type=["txt"],
         accept_multiple_files=True,
     )
-    output_filename = st.text_input(
-        "Enter the desired output file name without extension (e.g., output_analysis)"
-    )
 
     if st.button("Run IPA Analysis"):
-        if uploaded_files and output_filename:
-            # Ensure output_filename does not have an extension
-            output_filename = os.path.splitext(output_filename)[0]
-            ipa_analysis_pipeline(uploaded_files, output_filename)
+        if uploaded_files:
+            ipa_analysis_pipeline(uploaded_files)
         else:
-            st.warning("Please upload transcript files and specify an output file name.")
+            st.warning("Please upload at least one transcript file.")
 
 if __name__ == "__main__":
     main()
