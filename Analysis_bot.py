@@ -5,6 +5,8 @@ import time
 import os
 import logging
 
+from openai import OpenAI
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
