@@ -10,10 +10,8 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI Client with the API key
-client = OpenAI(
-    api_key=st.secrets["openai_api_key"]  # Ensure this key exists in Streamlit secrets
-)
+# Set the OpenAI API key
+openai.api_key = st.secrets["openai_api_key"]  # Ensure this key exists in Streamlit secrets
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3, retries=3):
     """
@@ -21,7 +19,8 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3, retrie
     Includes basic error handling and rate limiting.
     """
     try:
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
+            model=model,
             messages=[
                 {
                     "role": "system",
@@ -29,7 +28,6 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3, retrie
                 },
                 {"role": "user", "content": prompt},
             ],
-            model=model,
             max_tokens=max_tokens,
             temperature=temperature,
         )
