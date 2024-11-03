@@ -9,7 +9,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI Client with the API key
+# Initialize OpenAI API key
 openai.api_key = st.secrets["openai_api_key"]  # Ensure this key exists in Streamlit secrets
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3, retries=3):
@@ -56,88 +56,16 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.3, retrie
 def generate_pets(transcript, participant_id):
     """Generates PETs for a single participant."""
     prompt = f"""
-You are to perform an Interpretative Phenomenological Analysis (IPA) on the following transcript for participant {participant_id}.
-
-Process:
-- Make initial notes or comments.
-- Create experiential statements – refine notes into assertions.
-- Develop personal experiential themes (PETs) – trends that reflect the commonalities – conceptual, theoretical, semantic, practical, etc. – by clustering experiential statements.
-- Review and refine the PETs.
-
-When naming PETs, give clusters of experiential statements (ES) a title that describes its characteristics. PET names should be data and cluster-driven, representing the patterns of meaning in the data.
-
-Provide the output in a well-formatted JSON structure as follows:
-{{
-  "personal_experiential_themes": [
-    {{
-      "personal_experiential_theme": "PET Title 1",
-      "description": "Brief description of PET Title 1",
-      "extracts": [
-        "Relevant extract from the transcript",
-        "Another relevant extract"
-      ],
-      "analytic_comments": [
-        "Analytic comment related to PET Title 1",
-        "Another analytic comment"
-      ]
-    }},
-    ...
-  ]
-}}
-
-Ensure the JSON is complete and properly formatted, and do not include any text outside the JSON structure.
-
-Transcript for {participant_id}:
-{transcript}
-"""
+[Your detailed prompt for generating PETs]
+    """
     return call_chatgpt(prompt, max_tokens=3000)
 
 def generate_gets(pets_dict):
     """Generates GETs from PETs of all participants."""
     pets_json = json.dumps(pets_dict, indent=2)
     prompt = f"""
-You are to perform an Interpretative Phenomenological Analysis (IPA) across multiple participants to identify Group Experiential Themes (GETs).
-
-Process:
-- Working with the PETs from each participant, look for patterns of convergence and divergence across the cases.
-- Develop Group Experiential Themes (GETs) by clustering related PETs.
-- Review and refine the GETs.
-- Name the GETs appropriately, ensuring they capture the shared features of the experience among participants.
-
-Participants' PETs:
-{pets_json}
-
-Provide the output in a well-formatted JSON structure as follows:
-{{
-  "group_experiential_themes": [
-    {{
-      "group_experiential_theme": "GET Title 1",
-      "description": "Brief description of GET Title 1",
-      "subthemes": [
-        {{
-          "subtheme": "Subtheme Title 1",
-          "description": "Brief description of Subtheme Title 1",
-          "participant_contributions": [
-            {{
-              "participant_id": "P1",
-              "pet_title": "Corresponding PET Title",
-              "extracts": [
-                "Relevant extract from the participant's transcript",
-                "Another relevant extract"
-              ]
-            }},
-            ...
-          ]
-        }},
-        ...
-      ]
-    }},
-    ...
-  ]
-}}
-
-Ensure the JSON is complete and properly formatted, and do not include any text outside the JSON structure.
-"""
+[Your detailed prompt for generating GETs]
+    """
     return call_chatgpt(prompt, max_tokens=3000)
 
 def convert_to_markdown(data):
