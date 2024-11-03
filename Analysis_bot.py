@@ -16,7 +16,7 @@ except KeyError:
     st.error('OpenAI API key not found in secrets. Please add "openai_api_key" to your secrets.')
     st.stop()
 
-def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retries=2):
+def call_chatgpt(:
     """
     Sends a prompt to the OpenAI ChatGPT API and returns the response.
     Includes error handling and rate limiting.
@@ -28,8 +28,8 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
                 {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=max_tokens,
-            temperature=temperature,
+            max_tokens=1500,
+            temperature=0.3,
             stop=["}"]  # Ensures the JSON response is properly terminated
         )
         # Log the response for debugging (optional)
