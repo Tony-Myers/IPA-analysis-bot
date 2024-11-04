@@ -11,17 +11,17 @@ logger = logging.getLogger(__name__)
 
 # Initialize OpenAI with the API key from Streamlit secrets
 try:
-    openai.api_key = st.secrets["openai_api_key"]
-except KeyError:
-    st.error('OpenAI API key not found in secrets. Please add "openai_api_key" to your secrets.')
-    st.stop()
+    import openai
+
+# Initialize the OpenAI client
+client = openai.OpenAI(api_key=st.secrets["openai_api_key"])
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retries=2):
     """
     Calls the OpenAI ChatCompletion API with the specified parameters.
     """
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
@@ -34,7 +34,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
         # Log the response for debugging (optional)
         logger.info(f"API Response: {response}")
         return response.choices[0].message.content.strip()
-    except openai.RateLimitError:
+    except openai.error.RateLimitError:
         if retries > 0:
             st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
             logger.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
@@ -44,7 +44,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
             st.error("Rate limit exceeded. Please try again later.")
             logger.error("Rate limit exceeded.")
             return ""
-    except openai.OpenAIError as e:
+    except openai.error.OpenAIError as e:
         st.error(f"An OpenAI error occurred: {e}")
         logger.error(f"OpenAIError: {e}")
         return ""
