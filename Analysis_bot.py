@@ -83,8 +83,7 @@ def sanitize_json_response(content):
     if open_braces != close_braces:
         logger.error("Imbalanced JSON braces detected.")
         return "{}"  # Return an empty JSON object if structure is invalid
-
-    return content
+        return content
 
 def ipa_analysis_pipeline(transcript, output_path):
     """Runs the full IPA analysis pipeline on a given transcript."""
