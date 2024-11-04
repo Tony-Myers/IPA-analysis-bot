@@ -1,5 +1,5 @@
-import openai
 import streamlit as st
+import openai
 import json
 import time
 import os
@@ -9,10 +9,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI with the API key from Streamlit secrets
+# Initialize OpenAI client with the API key from Streamlit secrets
 try:
     api_key = st.secrets["openai_api_key"]
-    client = openai.Client(api_key=api_key)
+    client = openai.OpenAI(api_key=api_key)
 except KeyError:
     st.error('OpenAI API key not found in secrets. Please add "openai_api_key" to your secrets.')
     st.stop()
@@ -53,7 +53,6 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
         st.error(f"An unexpected error occurred: {e}")
         logger.error(f"Unexpected error: {e}")
         return ""
-
 
 def convert_to_markdown(data):
     """Converts the analysis data to Markdown format."""
@@ -172,68 +171,6 @@ def ipa_analysis_pipeline(transcript, output_path):
     except Exception as e:
         st.error(f"Error reading the transcript file: {e}")
         logger.error(f"Error reading the transcript file: {e}")
-        return
-
-    st.write("### Stage 1: Generating Initial Notes...")
-    with st.spinner("Generating initial notes..."):
-        initial_notes_json = stage1_initial_notes(transcript_text)
-
-    if initial_notes_json:
-        try:
-            initial_notes = json.loads(initial_notes_json)
-            st.success("Stage 1 completed successfully.")
-        except json.JSONDecodeError:
-            st.error("Error parsing JSON from Stage 1. Please check the API response.")
-            logger.error("Error parsing JSON from Stage 1. Please check the API response.")
-            initial_notes = {}
-    else:
-        initial_notes = {}
-
-    if not initial_notes:
-        st.error("Stage 1 failed. Aborting the pipeline.")
-        return
-
-    st.write("### Stage 2: Extracting Emergent Themes...")
-    with st.spinner("Extracting emergent themes..."):
-        emergent_themes_json = stage2_emergent_themes(initial_notes)
-
-    if emergent_themes_json:
-        try:
-            emergent_themes = json.loads(emergent_themes_json)
-            st.success("Stage 2 completed successfully.")
-        except json.JSONDecodeError:
-            st.error("Error parsing JSON from Stage 2. Please check the API response.")
-            logger.error("Error parsing JSON from Stage 2. Please check the API response.")
-            emergent_themes = []
-    else:
-        emergent_themes = []
-
-    if not emergent_themes:
-        st.error("Stage 2 failed. Aborting the pipeline.")
-        return
-
-    st.write("### Stage 3: Clustering Themes...")
-    with st.spinner("Clustering themes..."):
-        clustered_themes_json = stage3_cluster_themes(emergent_themes)
-
-    if clustered_themes_json:
-        try:
-            clustered_themes = json.loads(clustered_themes_json)
-            st.success("Stage 3 completed successfully.")
-        except json.JSONDecodeError:
-            st.error("Error parsing JSON from Stage 3. Please check the API response.")
-            logger.error("Error parsing JSON from Stage 3. Please check the API response.")
-            clustered_themes = {}
-    else:
-        clustered_themes = {}
-
-    if not clustered_themes:
-        st.error("Stage 3 failed. Aborting the pipeline.")
-        return
-
-    st.write("### Stage 4: Writing Up Themes with Extracts and Comments...")
-    with st.spinner("Writing up themes..."):
-        write_up_json = stage4_write_up_themes(clustered_themes, transcript_text)
 
     if write_up_json:
         try:
@@ -246,7 +183,7 @@ def ipa_analysis_pipeline(transcript, output_path):
             write_up_json = call_chatgpt(
                 prompt=stage4_write_up_themes(clustered_themes, transcript_text),
                 model="gpt-4",
-                max_tokens=800,  # Further reduced tokens
+                max_tokens=1800,  # Further reduced tokens
                 temperature=0.3,
                 retries=1
             )
