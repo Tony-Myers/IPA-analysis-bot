@@ -176,7 +176,7 @@ def ipa_analysis_pipeline(transcript, output_path):
     with st.spinner("Generating initial notes..."):
         initial_notes_json = stage1_initial_notes(transcript_text)
     
-    if initial_notes_json:
+        if initial_notes_json:
 
     try:
         initial_notes = json.loads(initial_notes_json)
