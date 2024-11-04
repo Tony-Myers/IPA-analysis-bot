@@ -6,6 +6,7 @@ import os
 import logging
 import re
 
+from openai import Client
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -36,27 +37,29 @@ def fix_json(json_string):
     json_string = re.sub(r',\s*,', ',', json_string)
 
     return json_string
-import openai
+
+from openai import Client
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
     """
     Calls the OpenAI API and parses the JSON response.
     """
     try:
-       response = client.chat.completions.create(
-    model=model,
-    messages=[
-        {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
-        {"role": "user", "content": prompt}
-    ],
-    max_tokens=max_tokens,
-    temperature=temperature,
-    stop=["}"]
-        )"
+        client = Client(api_key=api_key)
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stop=["}"]
+        )
 
         # Extract the assistant's reply
-        message = response['choices'][0]['message']
-        content = message['content'].strip()
+        message = response.choices[0].message
+        content = message.content.strip()
         logger.info(f"Raw API Response: {content}")
 
         # Try to parse the content as JSON
@@ -75,7 +78,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
                 logger.error(f"JSON parsing failed after cleaning: {e}")
                 st.error(f"JSON parsing error after cleaning: {e}")
                 return {}
-    except openai.RateLimitError:
+    except openai.error.RateLimitError:
         if retries > 0:
             st.warning("Rate limit exceeded. Retrying in 60 seconds...")
             time.sleep(60)
@@ -83,13 +86,12 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
         else:
             st.error("Rate limit exceeded.")
             return {}
-    except openai.OpenAIError as e:
+    except openai.error.OpenAIError as e:
         st.error(f"OpenAI API error: {e}")
         return {}
     except Exception as e:
         st.error(f"Unexpected error: {e}")
         return {}
-
 
 def ipa_analysis_pipeline(transcript, output_path):
     """Runs the full IPA analysis pipeline on a given transcript."""
