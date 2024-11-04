@@ -7,7 +7,6 @@ import logging
 import re
 import openai.error
 
-from openai import OpenAI
 from openai.error import OpenAIError, RateLimitError
 
 # Initialize logging
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 # Initialize OpenAI client with the API key from Streamlit secrets
 try:
     api_key = st.secrets["openai_api_key"]
-    client = openai.OpenAI(api_key=api_key)
+    openai.api_key = api_key
 except KeyError:
     st.error('OpenAI API key not found in secrets. Please add "openai_api_key" to your secrets.')
     st.stop()
@@ -27,34 +26,14 @@ def fix_json(json_string):
     """
     # [Contents of fix_json function as provided above]
 
-def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.2, retries=2):
+from openai.error import OpenAIError, RateLimitError
+
+def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
     """
     Calls the OpenAI API and parses the JSON response.
     """
-    function = {
-        "name": "ipa_analysis_stage1",
-        "description": "Performs Stage 1 IPA analysis and returns structured notes.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "observations": {"type": "array", "items": {"type": "string"}},
-                "reflections": {"type": "array", "items": {"type": "string"}},
-                "content_notes": {"type": "array", "items": {"type": "string"}},
-                "language_use": {"type": "array", "items": {"type": "string"}},
-                "context": {"type": "array", "items": {"type": "string"}},
-                "interpretative_comments": {"type": "array", "items": {"type": "string"}},
-                "distinctive_phrases": {"type": "array", "items": {"type": "string"}},
-                "emotional_responses": {"type": "array", "items": {"type": "string"}},
-                "reflexivity_comments": {"type": "array", "items": {"type": "string"}},
-            },
-            "required": ["observations", "reflections", "content_notes", "language_use",
-                         "context", "interpretative_comments", "distinctive_phrases",
-                         "emotional_responses", "reflexivity_comments"],
-        },
-    }
-
     try:
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model=model,
             messages=[
                 {
@@ -67,46 +46,46 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.2, retrie
                 },
                 {"role": "user", "content": prompt},
             ],
-            functions=[function],
-            function_call={"name": "ipa_analysis_stage1"},
             max_tokens=max_tokens,
             temperature=temperature,
         )
-        message = response.choices[0].message
-    function_call = getattr(message, "function_call", None)
-    
-    if function_call and hasattr(function_call, "arguments"):
-    arguments = function_call.arguments
-    logger.info(f"Function Call Arguments: {arguments}")
-    parsed_result = json.loads(arguments)
-    return parsed_result
-    else:
-        st.error("No function call arguments found in the response.")
-    return {}
 
-        logger.info(f"Raw API Response: {arguments}")
+        # Extract the assistant's reply
+        message = response['choices'][0]['message']
+        content = message.get('content', '').strip()
+        logger.info(f"Raw API Response: {content}")
 
-        parsed_result = json.loads(arguments)
-        return parsed_result
-
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON parsing failed: {e}")
-        st.error(f"JSON parsing error: {e}")
-        return {}
-   except RateLimitError:
-        if retries > 0:
+        # Try to parse the content as JSON
+        try:
+            parsed_result = json.loads(content)
+            return parsed_result
+        except json.JSONDecodeError as e:
+            logger.warning(f"Direct JSON parsing failed: {e}")
+            # Use fix_json to attempt to correct the JSON string
+            cleaned_content = fix_json(content)
+            logger.info(f"Cleaned JSON: {cleaned_content}")
+            try:
+                parsed_result = json.loads(cleaned_content)
+                return parsed_result
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON parsing failed after cleaning: {e}")
+                st.error(f"JSON parsing error after cleaning: {e}")
+                return {}
+        except RateLimitError:
+            if retries > 0:
             st.warning("Rate limit exceeded. Retrying in 60 seconds...")
             time.sleep(60)
             return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
-        else:
+            else:
             st.error("Rate limit exceeded.")
             return {}
-   except OpenAIError as e:
+        except OpenAIError as e:
         st.error(f"OpenAI API error: {e}")
-        return {}
-    except Exception as e:
+            return {}
+        except Exception as e:
         st.error(f"Unexpected error: {e}")
         return {}
+
 
 def ipa_analysis_pipeline(transcript, output_path):
     """Runs the full IPA analysis pipeline on a given transcript."""
