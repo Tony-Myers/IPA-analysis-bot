@@ -181,6 +181,7 @@ def ipa_analysis_pipeline(transcript, output_path):
     try:
         initial_notes = json.loads(initial_notes_json)
         st.success("Stage 1 completed successfully.")
+        return
     except json.JSONDecodeError:
         st.error("Error parsing JSON from Stage 1. Please check the API response.")
         logger.error("Error parsing JSON from Stage 1. Please check the API response.")
