@@ -42,6 +42,8 @@ def fix_json(json_string):
     return json_string
 
 
+from openai.error import OpenAIError, RateLimitError  # Import exceptions directly
+
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
     """
     Calls the OpenAI API and parses the JSON response.
@@ -66,7 +68,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
 
         # Extract the assistant's reply
         message = response['choices'][0]['message']
-        content = message.get('content', '').strip()
+        content = message.content.strip()
         logger.info(f"Raw API Response: {content}")
 
         # Try to parse the content as JSON
@@ -99,7 +101,6 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
     except Exception as e:
         st.error(f"Unexpected error: {e}")
         return {}
-
 
 def ipa_analysis_pipeline(transcript, output_path):
     """Runs the full IPA analysis pipeline on a given transcript."""
@@ -156,7 +157,7 @@ Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the followi
 Conduct a close reading, making notes about:
 - observations
 - reflections
-- content notes
+-  notes
 - language use
 - context
 - interpretative comments
