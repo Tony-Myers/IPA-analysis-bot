@@ -64,6 +64,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
         return ""
 
 
+
 def convert_to_markdown(data):
     """Converts the analysis data to Markdown format."""
     markdown = ""
