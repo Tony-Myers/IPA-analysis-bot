@@ -5,9 +5,8 @@ import time
 import os
 import logging
 import re
-import openai.error
 
-from openai.error import OpenAIError, RateLimitError
+from openai.error import OpenAIError, RateLimitError  # Import exceptions directly
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -24,8 +23,6 @@ def fix_json(json_string):
     """
     Attempts to fix common JSON formatting errors in the assistant's response.
     """
-    import re
-
     # Remove any text before the first '{' and after the last '}'
     json_string = re.sub(r'^[^{]*', '', json_string)
     json_string = re.sub(r'[^}]*$', '', json_string)
@@ -40,9 +37,6 @@ def fix_json(json_string):
     json_string = re.sub(r',\s*,', ',', json_string)
 
     return json_string
-
-
-from openai.error import OpenAIError, RateLimitError  # Import exceptions directly
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
     """
@@ -68,7 +62,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
 
         # Extract the assistant's reply
         message = response['choices'][0]['message']
-        content = message.content.strip()
+        content = message['content'].strip()  # Use dictionary key access
         logger.info(f"Raw API Response: {content}")
 
         # Try to parse the content as JSON
@@ -157,7 +151,7 @@ Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the followi
 Conduct a close reading, making notes about:
 - observations
 - reflections
--  notes
+- notes
 - language use
 - context
 - interpretative comments
@@ -187,7 +181,7 @@ def stage2_experiential_statements(initial_notes):
     Provide the experiential statements in a JSON array format.
     """
     result = call_chatgpt(prompt)
-    return json.loads(result) if result else []
+    return result if result else []
 
 def stage3_cluster_pet(es):
     """Stage 3: Clustering experiential statements into Personal Experiential Themes (PETs)."""
@@ -197,7 +191,7 @@ def stage3_cluster_pet(es):
     Output JSON with hierarchy: personal_experiential_theme -> description.
     """
     result = call_chatgpt(prompt)
-    return json.loads(result) if result else {}
+    return result if result else {}
 
 def stage4_get_writeup(pets, transcript_text):
     """Stage 4: Writing up themes based on Personal and Group Experiential Themes."""
@@ -208,8 +202,7 @@ def stage4_get_writeup(pets, transcript_text):
     Output JSON with hierarchy: group_experiential_theme -> personal_experiential_theme -> description, extracts, analytic_comments.
     """
     result = call_chatgpt(prompt)
-    return json.loads(result) if result else {}
-
+    return result if result else {}
 
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool")
@@ -225,3 +218,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
