@@ -12,7 +12,7 @@ from openai.error import OpenAIError, RateLimitError
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-# Initialize OpenAI client with the API key from Streamlit secrets
+
 try:
     api_key = st.secrets["openai_api_key"]
     openai.api_key = api_key
@@ -24,9 +24,23 @@ def fix_json(json_string):
     """
     Attempts to fix common JSON formatting errors in the assistant's response.
     """
-    # [Contents of fix_json function as provided above]
+    import re
 
-from openai.error import OpenAIError, RateLimitError
+    # Remove any text before the first '{' and after the last '}'
+    json_string = re.sub(r'^[^{]*', '', json_string)
+    json_string = re.sub(r'[^}]*$', '', json_string)
+
+    # Remove trailing commas before closing braces or brackets
+    json_string = re.sub(r',\s*([\]}])', r'\1', json_string)
+
+    # Replace single quotes with double quotes
+    json_string = json_string.replace("'", '"')
+
+    # Remove extra commas
+    json_string = re.sub(r',\s*,', ',', json_string)
+
+    return json_string
+
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
     """
@@ -71,18 +85,18 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
                 logger.error(f"JSON parsing failed after cleaning: {e}")
                 st.error(f"JSON parsing error after cleaning: {e}")
                 return {}
-        except RateLimitError:
-            if retries > 0:
+    except RateLimitError:
+        if retries > 0:
             st.warning("Rate limit exceeded. Retrying in 60 seconds...")
             time.sleep(60)
             return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
-            else:
+        else:
             st.error("Rate limit exceeded.")
             return {}
-        except OpenAIError as e:
+    except OpenAIError as e:
         st.error(f"OpenAI API error: {e}")
-            return {}
-        except Exception as e:
+        return {}
+    except Exception as e:
         st.error(f"Unexpected error: {e}")
         return {}
 
@@ -133,6 +147,7 @@ def ipa_analysis_pipeline(transcript, output_path):
         st.markdown(convert_to_markdown(get_writeup))
     else:
         st.error("Stage 4 failed. Analysis incomplete.")
+        
 def stage1_initial_notes(transcript_text):
     """Stage 1: Close reading and initial notes."""
     prompt = f"""
@@ -141,10 +156,10 @@ Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the followi
 Conduct a close reading, making notes about:
 - observations
 - reflections
-- content
+- content notes
 - language use
 - context
-- initial interpretative comments
+- interpretative comments
 - distinctive phrases
 - emotional responses
 - reflexivity comments
@@ -160,7 +175,6 @@ Transcript:
 """
     result = call_chatgpt(prompt)
     return result if result else {}
-
 
 def stage2_experiential_statements(initial_notes):
     """Stage 2: Transforming notes into experiential statements."""
