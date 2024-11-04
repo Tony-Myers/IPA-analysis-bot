@@ -177,8 +177,7 @@ def ipa_analysis_pipeline(transcript, output_path):
         initial_notes_json = stage1_initial_notes(transcript_text)
     
     if initial_notes_json:
-        try:
-           if initial_notes_json:
+
     try:
         initial_notes = json.loads(initial_notes_json)
         st.success("Stage 1 completed successfully.")
