@@ -9,7 +9,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI Client with the API key from Streamlit secrets
+# Initialize OpenAI with the API key from Streamlit secrets
 try:
     openai.api_key = st.secrets["openai_api_key"]
 except KeyError:
@@ -18,7 +18,7 @@ except KeyError:
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retries=2):
     """
-    Calls the OpenAI ChatGPT model with the specified prompt and parameters.
+    Calls the OpenAI ChatCompletion API with the specified parameters.
     """
     try:
         response = openai.ChatCompletion.create(
@@ -179,11 +179,9 @@ def ipa_analysis_pipeline(transcript, output_path):
     if initial_notes_json:
         try:
             initial_notes = json.loads(initial_notes_json)
-            st.success("Stage 1 completed successfully.")
-       
+            st.success("
 ::contentReference[oaicite:0]{index=0}
- 
-        except json.JSONDecodeError:
+                    except json.JSONDecodeError:
             st.error("Error parsing JSON from Stage 1. Please check the API response.")
             logger.error("Error parsing JSON from Stage 1. Please check the API response.")
             initial_notes = {}
@@ -303,3 +301,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+ 
