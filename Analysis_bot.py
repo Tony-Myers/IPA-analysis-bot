@@ -5,8 +5,6 @@ import time
 import os
 import logging
 
-from openai import OpenAI
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,14 +18,10 @@ except KeyError:
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retries=2):
     """
-    Calls the OpenAI ChatGPT model with the specified parameters.
+    Calls the OpenAI ChatGPT model with the specified prompt and parameters.
     """
     try:
-        # Initialize the OpenAI client with the API key
-        client = OpenAI(api_key=openai.api_key)
-
-        # Create a chat completion
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
@@ -37,14 +31,10 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
             temperature=temperature,
             stop=["}"]  # Ensures the JSON response is properly terminated
         )
-
         # Log the response for debugging (optional)
         logger.info(f"API Response: {response}")
-
-        # Return the content of the first choice
         return response.choices[0].message.content.strip()
-
-    except openai.RateLimitError:
+    except openai.error.RateLimitError:
         if retries > 0:
             st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
             logger.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
@@ -54,7 +44,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
             st.error("Rate limit exceeded. Please try again later.")
             logger.error("Rate limit exceeded.")
             return ""
-    except openai.OpenAIError as e:
+    except openai.error.OpenAIError as e:
         st.error(f"An OpenAI error occurred: {e}")
         logger.error(f"OpenAIError: {e}")
         return ""
@@ -62,8 +52,6 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
         st.error(f"An unexpected error occurred: {e}")
         logger.error(f"Unexpected error: {e}")
         return ""
-
-
 
 def convert_to_markdown(data):
     """Converts the analysis data to Markdown format."""
@@ -82,44 +70,16 @@ def convert_to_markdown(data):
             markdown += "\n"
     return markdown
 
-def convert_to_text(data):
-    """Converts the analysis data to plain text format."""
-    text = ""
-    for theme in data.get("superordinate_themes", []):
-        text += f"Superordinate Theme: {theme['superordinate_theme']}\n"
-        for subtheme in theme.get("subthemes", []):
-            text += f"  Subtheme: {subtheme['subtheme']}\n"
-            text += f"    Description: {subtheme.get('description', 'N/A')}\n"
-            text += f"    Extracts:\n"
-            for extract in subtheme.get("extracts", []):
-                text += f"      - {extract}\n"
-            text += f"    Analytic Comments:\n"
-            for comment in subtheme.get("analytic_comments", []):
-                text += f"      - {comment}\n"
-            text += "\n"
-    return text
-
-def save_output(data, file_path, format="json"):
-    """Saves the data to a specified file format."""
+def save_output(data, file_path):
+    """Saves the data to a Markdown file."""
     try:
         directory = os.path.dirname(file_path)
         if directory and not os.path.exists(directory):
             os.makedirs(directory)
         
-        if format == "json":
-            with open(file_path, 'w', encoding='utf-8') as file:
-                json.dump(data, file, indent=2, ensure_ascii=False)
-        elif format == "markdown":
-            with open(file_path, 'w', encoding='utf-8') as file:
-                markdown_content = convert_to_markdown(data)
-                file.write(markdown_content)
-        elif format == "text":
-            with open(file_path, 'w', encoding='utf-8') as file:
-                text_content = convert_to_text(data)
-                file.write(text_content)
-        else:
-            st.error(f"Unsupported format: {format}")
-            return
+        with open(file_path, 'w', encoding='utf-8') as file:
+            markdown_content = convert_to_markdown(data)
+            file.write(markdown_content)
         
         st.success(f"IPA analysis complete. Results saved to {file_path}")
     except Exception as e:
@@ -220,6 +180,9 @@ def ipa_analysis_pipeline(transcript, output_path):
         try:
             initial_notes = json.loads(initial_notes_json)
             st.success("Stage 1 completed successfully.")
+       
+::contentReference[oaicite:0]{index=0}
+ 
         except json.JSONDecodeError:
             st.error("Error parsing JSON from Stage 1. Please check the API response.")
             logger.error("Error parsing JSON from Stage 1. Please check the API response.")
@@ -300,48 +263,22 @@ def ipa_analysis_pipeline(transcript, output_path):
     
     if write_up:
         st.write("### Saving the Final Analysis to File...")
-        save_output(write_up, output_path, format="json")
-        st.write("### Final Analysis:")
-        st.json(write_up)
-        
-        # Convert data to desired formats
         markdown_content = convert_to_markdown(write_up)
-        text_content = convert_to_text(write_up)
+        markdown_filename = f"{output_path}.md"
         
-        # Provide download buttons
+        # Save the Markdown file
+        save_output(write_up, markdown_filename)
+        
+        st.write("### Final Analysis:")
+        st.markdown(markdown_content)
+        
+        # Provide download button for Markdown file
         st.write("### Download Results:")
-        
-        # Prepare file names
-        base_filename = os.path.splitext(os.path.basename(output_path))[0]
-        json_filename = f"{base_filename}.json"
-        markdown_filename = f"{base_filename}.md"
-        text_filename = f"{base_filename}.txt"
-        
-        # Encode the contents
-        json_bytes = json.dumps(write_up, indent=2).encode('utf-8')
-        markdown_bytes = markdown_content.encode('utf-8')
-        text_bytes = text_content.encode('utf-8')
-        
-        # Create download buttons
-        st.download_button(
-            label="Download JSON",
-            data=json_bytes,
-            file_name=json_filename,
-            mime="application/json"
-        )
-        
         st.download_button(
             label="Download Markdown",
-            data=markdown_bytes,
+            data=markdown_content,
             file_name=markdown_filename,
             mime="text/markdown"
-        )
-        
-        st.download_button(
-            label="Download Text",
-            data=text_bytes,
-            file_name=text_filename,
-            mime="text/plain"
         )
     else:
         st.error("Stage 4 failed. Analysis incomplete.")
