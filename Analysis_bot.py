@@ -122,29 +122,6 @@ def save_output(data, file_path, format="markdown"):
         st.error(f"Failed to save the output file: {e}")
         logger.error(f"Failed to save the output file: {e}")
 
-def stage1_initial_notes(transcript):
-    """Stage 1: Close reading and initial notes."""
-    prompt = f"""
-    Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the following interview transcript.
-    Conduct a close reading, making notes about observations, reflections, content, language use, context, and initial interpretative comments.
-    Highlight distinctive phrases and emotional responses. Include any personal reflexivity comments if relevant.
-
-    Transcript:
-    {transcript}
-
-    Provide the output in a structured JSON format with the following fields:
-    - observations
-    - reflections
-    - content_notes
-    - language_use
-    - context
-    - interpretative_comments
-    - distinctive_phrases
-    - emotional_responses
-    - reflexivity_comments
-    """
-    return call_chatgpt(prompt)
-
 def stage2_experiential_statements(initial_notes):
     """Stage 2: Transforming notes into experiential statements."""
     prompt = f"""
