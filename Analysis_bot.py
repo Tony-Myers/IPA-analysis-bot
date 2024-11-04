@@ -207,7 +207,6 @@ else:
 
     if not emergent_themes:
         st.error("Stage 2 failed. Aborting the pipeline.")
-        return
 
     st.write("### Stage 3: Clustering Themes...")
     with st.spinner("Clustering themes..."):
