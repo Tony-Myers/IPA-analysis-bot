@@ -187,9 +187,6 @@ if initial_notes_json:
 else:
     initial_notes = {}
 
-    else:
-        initial_notes = {}
-
     if not initial_notes:
         st.error("Stage 1 failed. Aborting the pipeline.")
         return
