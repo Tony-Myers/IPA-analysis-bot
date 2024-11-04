@@ -25,17 +25,18 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
     Calls the OpenAI API with enhanced JSON validation and sanitization.
     """
     try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": "You are an expert qualitative researcher specializing in IPA."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=max_tokens,
-            temperature=temperature,
-            stop=["}"]
-        )
-        raw_content = response.choices[0].message['content'].strip()
+       response = client.chat.completions.create(
+    model=model,
+    messages=[
+        {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
+        {"role": "user", "content": prompt}
+    ],
+    max_tokens=max_tokens,
+    temperature=temperature,
+    stop=["}"]
+)
+result = response.choices[0].message.content.strip()
+
         logger.info(f"Raw API Response: {raw_content}")
 
         # Sanitize content: ensure basic JSON format
