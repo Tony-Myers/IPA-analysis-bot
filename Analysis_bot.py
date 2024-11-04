@@ -20,13 +20,14 @@ except KeyError:
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retries=2):
     """
+    Calls the OpenAI ChatGPT model with the specified parameters.
     """
     try:
+        # Initialize the OpenAI client with the API key
+        client = OpenAI(api_key=openai.api_key)
 
-        client = OpenAI(
-    # Defaults to os.environ.get("OPENAI_API_KEY")
-    # Otherwise use: api_key="Your_API_Key",
-    reponse = client.chat.completions.create(
+        # Create a chat completion
+        response = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
@@ -35,10 +36,14 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
             max_tokens=max_tokens,
             temperature=temperature,
             stop=["}"]  # Ensures the JSON response is properly terminated
-        ))
+        )
+
         # Log the response for debugging (optional)
         logger.info(f"API Response: {response}")
+
+        # Return the content of the first choice
         return response.choices[0].message.content.strip()
+
     except openai.RateLimitError:
         if retries > 0:
             st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
@@ -57,6 +62,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
         st.error(f"An unexpected error occurred: {e}")
         logger.error(f"Unexpected error: {e}")
         return ""
+
 
 def convert_to_markdown(data):
     """Converts the analysis data to Markdown format."""
