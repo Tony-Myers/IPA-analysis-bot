@@ -132,6 +132,64 @@ def ipa_analysis_pipeline(transcript, output_path):
     else:
         st.error("Stage 4 failed. Analysis incomplete.")
 
+def stage1_initial_notes(transcript_text):
+    """Stage 1: Close reading and initial notes."""
+    prompt = f"""
+    Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the following interview transcript.
+    Conduct a close reading, making notes about observations, reflections, content, language use, context, and initial interpretative comments.
+    Highlight distinctive phrases and emotional responses. Include any personal reflexivity comments if relevant.
+
+    Transcript:
+    {transcript_text}
+
+    Provide the output in a structured JSON format with the following fields:
+    - observations
+    - reflections
+    - content_notes
+    - language_use
+    - context
+    - interpretative_comments
+    - distinctive_phrases
+    - emotional_responses
+    - reflexivity_comments
+    """
+    result = call_chatgpt(prompt)
+    return json.loads(result) if result else {}
+
+def stage2_experiential_statements(initial_notes):
+    """Stage 2: Transforming notes into experiential statements."""
+    prompt = f"""
+    Using the following initial notes from an IPA analysis, transform them into experiential statements.
+    Initial Notes:
+    {json.dumps(initial_notes, indent=2)}
+
+    Provide the experiential statements in a JSON array format.
+    """
+    result = call_chatgpt(prompt)
+    return json.loads(result) if result else []
+
+def stage3_cluster_pet(es):
+    """Stage 3: Clustering experiential statements into Personal Experiential Themes (PETs)."""
+    prompt = f"""
+    Cluster the following experiential statements into Personal Experiential Themes (PETs).
+    ES: {json.dumps(es, indent=2)}
+    Output JSON with hierarchy: personal_experiential_theme -> description.
+    """
+    result = call_chatgpt(prompt)
+    return json.loads(result) if result else {}
+
+def stage4_get_writeup(pets, transcript_text):
+    """Stage 4: Writing up themes based on Personal and Group Experiential Themes."""
+    prompt = f"""
+    Write up the themes based on Personal Experiential Themes (PETs), including extracts and analytic comments.
+    PETs: {json.dumps(pets, indent=2)}
+    Transcript: {transcript_text}
+    Output JSON with hierarchy: group_experiential_theme -> personal_experiential_theme -> description, extracts, analytic_comments.
+    """
+    result = call_chatgpt(prompt)
+    return json.loads(result) if result else {}
+
+
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool")
 
