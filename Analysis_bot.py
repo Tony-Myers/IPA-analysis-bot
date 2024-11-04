@@ -7,8 +7,8 @@ import logging
 import re
 import openai.error
 
-from openai.error import OpenAIError, RateLimitError
 from openai import OpenAI
+from openai.error import OpenAIError, RateLimitError
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -72,14 +72,17 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.2, retrie
             max_tokens=max_tokens,
             temperature=temperature,
         )
-
-            message = response.choices[0].message
-            function_call = getattr(message, "function_call", None)
-
+        message = response.choices[0].message
+    function_call = getattr(message, "function_call", None)
+    
     if function_call and hasattr(function_call, "arguments"):
-            arguments = function_call.arguments
+    arguments = function_call.arguments
+    logger.info(f"Function Call Arguments: {arguments}")
+    parsed_result = json.loads(arguments)
+    return parsed_result
     else:
-    arguments = "{}"  # Default to an empty JSON object if no arguments are found
+        st.error("No function call arguments found in the response.")
+    return {}
 
         logger.info(f"Raw API Response: {arguments}")
 
