@@ -175,20 +175,21 @@ def ipa_analysis_pipeline(transcript, output_path):
     st.write("### Stage 1: Generating Initial Notes...")
     with st.spinner("Generating initial notes..."):
         initial_notes_json = stage1_initial_notes(transcript_text)
-        
-if initial_notes_json:
-    try:
-        initial_notes = json.loads(initial_notes_json)
-        st.success("Stage 1 completed successfully.")
-    except json.JSONDecodeError:
-        st.error("Error parsing JSON from Stage 1. Please check the API response.")
-        logger.error("Error parsing JSON from Stage 1. Please check the API response.")
+
+    if initial_notes_json:
+        try:
+            initial_notes = json.loads(initial_notes_json)
+            st.success("Stage 1 completed successfully.")
+        except json.JSONDecodeError:
+            st.error("Error parsing JSON from Stage 1. Please check the API response.")
+            logger.error("Error parsing JSON from Stage 1. Please check the API response.")
+            initial_notes = {}
+    else:
         initial_notes = {}
-else:
-    initial_notes = {}
 
     if not initial_notes:
         st.error("Stage 1 failed. Aborting the pipeline.")
+        return
 
     st.write("### Stage 2: Extracting Emergent Themes...")
     with st.spinner("Extracting emergent themes..."):
@@ -207,6 +208,7 @@ else:
 
     if not emergent_themes:
         st.error("Stage 2 failed. Aborting the pipeline.")
+        return
 
     st.write("### Stage 3: Clustering Themes...")
     with st.spinner("Clustering themes..."):
@@ -277,6 +279,7 @@ else:
         )
     else:
         st.error("Stage 4 failed. Analysis incomplete.")
+
 
 
 def main():
