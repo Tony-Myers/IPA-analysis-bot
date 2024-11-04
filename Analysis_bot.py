@@ -1,25 +1,18 @@
 import streamlit as st
+import re
 import openai
 import json
 import time
 import os
 import logging
 
-# Configure logging
+# Initialize logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI client
-try:
-    api_key = st.secrets["openai_api_key"]
-    client = openai.OpenAI(api_key=api_key)
-except KeyError:
-    st.error('OpenAI API key not found in secrets. Please add "openai_api_key" to your secrets.')
-    st.stop()
-
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retries=2):
     """
-    Calls the OpenAI API and handles JSON parsing errors.
+    Calls the OpenAI API with enhanced JSON validation and sanitization.
     """
     try:
         response = client.chat.completions.create(
@@ -32,16 +25,19 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
             temperature=temperature,
             stop=["}"]
         )
-        logger.info(f"API Response: {response}")
-        # Attempt JSON loading here to ensure valid JSON is returned
+        raw_content = response.choices[0].message.content.strip()
+        logger.info(f"Raw API Response: {raw_content}")
+
+        # Sanitize content: ensure basic JSON format
+        sanitized_content = sanitize_json_response(raw_content)
+        
+        # Validate and parse JSON
         try:
-            content = response.choices[0].message.content.strip()
-            # Ensure content is valid JSON before returning
-            json.loads(content)  # Test JSON formatting
-            return content
+            return json.loads(sanitized_content)  # Attempt parsing
         except json.JSONDecodeError as e:
-            logger.error(f"JSON decoding error: {e}")
-            return ""  # Empty string indicates a parsing issue
+            logger.error(f"JSON parsing error after sanitization: {e}")
+            return {}  # Return empty JSON as a fallback on failure
+
     except openai.error.RateLimitError:
         if retries > 0:
             st.warning("Rate limit exceeded. Retrying in 60 seconds...")
@@ -49,13 +45,33 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
             return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
         else:
             st.error("Rate limit exceeded.")
-            return ""
+            return {}
     except openai.error.OpenAIError as e:
         st.error(f"OpenAI API error: {e}")
-        return ""
+        return {}
     except Exception as e:
         st.error(f"Unexpected error: {e}")
-        return ""
+        return {}
+
+def sanitize_json_response(content):
+    """
+    Attempts to clean and validate JSON structure in API responses.
+    """
+    # Remove common extraneous content not part of JSON
+    content = content.replace("\n", "").replace("\r", "").strip()
+
+    # Check if content starts with '{' and ends with '}', indicative of JSON object
+    if not content.startswith("{") or not content.endswith("}"):
+        logger.warning("Response does not have typical JSON structure. Attempting to adjust.")
+        content = re.search(r"\{.*\}", content)  # Extract JSON portion if within other text
+
+    # Final JSON validation: ensure balanced brackets
+    open_braces, close_braces = content.count("{"), content.count("}")
+    if open_braces != close_braces:
+        logger.error("Imbalanced JSON braces detected.")
+        return "{}"  # Return an empty JSON object if structure is invalid
+
+    return content
 
 # Modified stages to handle JSON errors explicitly and gracefully
 def stage1_initial_notes(transcript):
