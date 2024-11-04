@@ -6,6 +6,8 @@ import os
 import logging
 import re
 
+from openai import OpenAI
+
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
