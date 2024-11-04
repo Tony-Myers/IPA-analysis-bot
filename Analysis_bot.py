@@ -25,22 +25,22 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
     Calls the OpenAI API with enhanced JSON validation and sanitization.
     """
     try:
-       response = client.chat.completions.create(
-    model=model,
-    messages=[
-        {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
-        {"role": "user", "content": prompt}
-    ],
-    max_tokens=max_tokens,
-    temperature=temperature,
-    stop=["}"]
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stop=["}"]
         )
-    result = response.choices[0].message.content.strip()
+        result = response.choices[0].message.content.strip()
 
-        logger.info(f"Raw API Response: {raw_content}")
+        logger.info(f"Raw API Response: {result}")
 
         # Sanitize content: ensure basic JSON format
-        sanitized_content = sanitize_json_response(raw_content)
+        sanitized_content = sanitize_json_response(result)
         
         # Validate and parse JSON
         try:
@@ -77,6 +77,14 @@ def sanitize_json_response(content):
         match = re.search(r"\{.*\}", content)
         if match:
             content = match.group(0)
+
+    # Final JSON validation: ensure balanced brackets
+    open_braces, close_braces = content.count("{"), content.count("}")
+    if open_braces != close_braces:
+        logger.error("Imbalanced JSON braces detected.")
+        return "{}"  # Return an empty JSON object if structure is invalid
+
+    return content
 
     # Final JSON validation: ensure balanced brackets
     open_braces, close_braces = content.count("{"), content.count("}")
