@@ -11,7 +11,6 @@ from openai import OpenAI
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 # Initialize OpenAI client with the API key from Streamlit secrets
 try:
     api_key = st.secrets["openai_api_key"]
@@ -20,47 +19,71 @@ except KeyError:
     st.error('OpenAI API key not found in secrets. Please add "openai_api_key" to your secrets.')
     st.stop()
 
-def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retries=2):
+def fix_json(json_string):
+    """
+    Attempts to fix common JSON formatting errors in the assistant's response.
+    """
+    # [Contents of fix_json function as provided above]
+
+def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.2, retries=2):
     """
     Calls the OpenAI API and parses the JSON response.
     """
+    function = {
+        "name": "ipa_analysis_stage1",
+        "description": "Performs Stage 1 IPA analysis and returns structured notes.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "observations": {"type": "array", "items": {"type": "string"}},
+                "reflections": {"type": "array", "items": {"type": "string"}},
+                "content_notes": {"type": "array", "items": {"type": "string"}},
+                "language_use": {"type": "array", "items": {"type": "string"}},
+                "context": {"type": "array", "items": {"type": "string"}},
+                "interpretative_comments": {"type": "array", "items": {"type": "string"}},
+                "distinctive_phrases": {"type": "array", "items": {"type": "string"}},
+                "emotional_responses": {"type": "array", "items": {"type": "string"}},
+                "reflexivity_comments": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["observations", "reflections", "content_notes", "language_use",
+                         "context", "interpretative_comments", "distinctive_phrases",
+                         "emotional_responses", "reflexivity_comments"],
+        },
+    }
+
     try:
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
-                {"role": "user", "content": prompt}
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an expert qualitative researcher specializing in "
+                        "Interpretative Phenomenological Analysis (IPA). "
+                        "You output data in valid JSON format without any additional text."
+                    ),
+                },
+                {"role": "user", "content": prompt},
             ],
+            functions=[function],
+            function_call={"name": "ipa_analysis_stage1"},
             max_tokens=max_tokens,
             temperature=temperature,
-            stop=["}"]
         )
-        result = response.choices[0].message.content.strip()
 
-        logger.info(f"Raw API Response: {result}")
+        # The assistant's reply will be in response.choices[0].message.function_call
+        function_call = response.choices[0].message.get("function_call", {})
+        arguments = function_call.get("arguments", "{}")
 
-        # Try to parse the result directly
-        try:
-            parsed_result = json.loads(result)
-            return parsed_result
-        except json.JSONDecodeError as e:
-            logger.warning(f"Direct JSON parsing failed: {e}")
-            # Attempt to extract JSON content using regex
-            match = re.search(r"\{.*\}", result, re.DOTALL)
-            if match:
-                json_content = match.group(0)
-                try:
-                    parsed_result = json.loads(json_content)
-                    return parsed_result
-                except json.JSONDecodeError as e:
-                    logger.error(f"JSON parsing failed after extraction: {e}")
-                    st.error(f"JSON parsing error: {e}")
-                    return {}
-            else:
-                logger.error("No JSON object could be found in the response.")
-                st.error("No JSON object could be found in the response.")
-                return {}
+        logger.info(f"Raw API Response: {arguments}")
 
+        parsed_result = json.loads(arguments)
+        return parsed_result
+
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON parsing failed: {e}")
+        st.error(f"JSON parsing error: {e}")
+        return {}
     except openai.error.RateLimitError:
         if retries > 0:
             st.warning("Rate limit exceeded. Retrying in 60 seconds...")
@@ -122,33 +145,34 @@ def ipa_analysis_pipeline(transcript, output_path):
         st.markdown(convert_to_markdown(get_writeup))
     else:
         st.error("Stage 4 failed. Analysis incomplete.")
-
 def stage1_initial_notes(transcript_text):
     """Stage 1: Close reading and initial notes."""
     prompt = f"""
-    Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the following interview transcript.
-    Conduct a close reading, making notes about observations, reflections, content, language use, context, and initial interpretative comments.
-    Highlight distinctive phrases and emotional responses. Include any personal reflexivity comments if relevant.
-    
-    Transcript:
-    {transcript_text}
+Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the following interview transcript.
 
-    **Provide the output in valid JSON format with the following fields only:**
-    - observations
-    - reflections
-    - content_notes
-    - language_use
-    - context
-    - interpretative_comments
-    - distinctive_phrases
-    - emotional_responses
-    - reflexivity_comments
+Conduct a close reading, making notes about:
+- observations
+- reflections
+- content
+- language use
+- context
+- initial interpretative comments
+- distinctive phrases
+- emotional responses
+- reflexivity comments
 
-    **Ensure the output is valid JSON and does not include any additional text or explanation.**
-    """
+**Instructions:**
+- Provide the output in **strictly valid JSON format**.
+- Ensure all necessary commas and syntax are included.
+- Do **not** include any additional text, comments, or explanations—only the JSON object.
+- Double-check your JSON for correctness before outputting.
 
+Transcript:
+{transcript_text}
+"""
     result = call_chatgpt(prompt)
     return result if result else {}
+
 
 def stage2_experiential_statements(initial_notes):
     """Stage 2: Transforming notes into experiential statements."""
