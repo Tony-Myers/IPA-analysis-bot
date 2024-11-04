@@ -33,7 +33,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
             temperature=temperature,
             stop=["}"]
         )
-               raw_content = response.choices[0].message['content'].strip()
+        raw_content = response.choices[0].message['content'].strip()
         logger.info(f"Raw API Response: {raw_content}")
 
         # Sanitize content: ensure basic JSON format
