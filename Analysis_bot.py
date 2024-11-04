@@ -11,10 +11,11 @@ logger = logging.getLogger(__name__)
 
 # Initialize OpenAI with the API key from Streamlit secrets
 try:
-    import openai
-
-# Initialize the OpenAI client
-client = openai.OpenAI(api_key=st.secrets["openai_api_key"])
+    api_key = st.secrets["openai_api_key"]
+    client = openai.Client(api_key=api_key)
+except KeyError:
+    st.error('OpenAI API key not found in secrets. Please add "openai_api_key" to your secrets.')
+    st.stop()
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retries=2):
     """
@@ -52,6 +53,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
         st.error(f"An unexpected error occurred: {e}")
         logger.error(f"Unexpected error: {e}")
         return ""
+
 
 def convert_to_markdown(data):
     """Converts the analysis data to Markdown format."""
