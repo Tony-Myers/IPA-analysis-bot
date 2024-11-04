@@ -5,13 +5,11 @@ import time
 import os
 import logging
 
-from openai import OpenAI
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize OpenAI client with the API key from Streamlit secrets
+# Initialize OpenAI client
 try:
     api_key = st.secrets["openai_api_key"]
     client = openai.OpenAI(api_key=api_key)
@@ -21,13 +19,13 @@ except KeyError:
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retries=2):
     """
-    Calls the OpenAI ChatCompletion API with the specified parameters.
+    Calls the OpenAI API and handles JSON parsing errors.
     """
     try:
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
+                {"role": "system", "content": "You are an expert qualitative researcher specializing in IPA."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=max_tokens,
@@ -35,131 +33,77 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
             stop=["}"]
         )
         logger.info(f"API Response: {response}")
-        return response.choices[0].message.content.strip()
+        # Attempt JSON loading here to ensure valid JSON is returned
+        try:
+            content = response.choices[0].message.content.strip()
+            # Ensure content is valid JSON before returning
+            json.loads(content)  # Test JSON formatting
+            return content
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decoding error: {e}")
+            return ""  # Empty string indicates a parsing issue
     except openai.error.RateLimitError:
         if retries > 0:
-            st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
-            logger.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
+            st.warning("Rate limit exceeded. Retrying in 60 seconds...")
             time.sleep(60)
             return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
         else:
-            st.error("Rate limit exceeded. Please try again later.")
-            logger.error("Rate limit exceeded.")
+            st.error("Rate limit exceeded.")
             return ""
     except openai.error.OpenAIError as e:
-        st.error(f"An OpenAI error occurred: {e}")
-        logger.error(f"OpenAIError: {e}")
+        st.error(f"OpenAI API error: {e}")
         return ""
     except Exception as e:
-        st.error(f"An unexpected error occurred: {e}")
-        logger.error(f"Unexpected error: {e}")
+        st.error(f"Unexpected error: {e}")
         return ""
 
-def convert_to_markdown(data):
-    """Converts the analysis data to Markdown format."""
-    markdown = ""
-    for theme in data.get("personal_experiential_theme", []):
-        markdown += f"## {theme['personal_experiential_theme']}\n\n"
-        for subtheme in theme.get("subthemes", []):
-            markdown += f"### {subtheme['subtheme']}\n\n"
-            markdown += f"**Description:** {subtheme.get('description', 'N/A')}\n\n"
-            markdown += f"**Extracts:**\n"
-            for extract in subtheme.get("extracts", []):
-                markdown += f"- {extract}\n"
-            markdown += "\n**Analytic Comments:**\n"
-            for comment in subtheme.get("analytic_comments", []):
-                markdown += f"- {comment}\n"
-            markdown += "\n"
-    return markdown
-
-def save_output(data, file_path):
-    """Saves the data to a Markdown file."""
-    try:
-        directory = os.path.dirname(file_path)
-        if directory and not os.path.exists(directory):
-            os.makedirs(directory)
-        
-        with open(file_path, 'w', encoding='utf-8') as file:
-            markdown_content = convert_to_markdown(data)
-            file.write(markdown_content)
-        
-        st.success(f"IPA analysis complete. Results saved to {file_path}")
-    except Exception as e:
-        st.error(f"Failed to save the output file: {e}")
-        logger.error(f"Failed to save the output file: {e}")
-
+# Modified stages to handle JSON errors explicitly and gracefully
 def stage1_initial_notes(transcript):
-    """Stage 1: Close reading and initial notes."""
-    prompt = f"""
-    Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the following interview transcript.
-    Conduct a close reading, making notes about observations, reflections, content, language use, context, and initial interpretative comments.
-    Highlight distinctive phrases and emotional responses. Include any personal reflexivity comments if relevant.
-
-    Transcript:
-    {transcript}
-
-    Provide the output in a structured JSON format with the following fields:
-    - observations
-    - reflections
-    - content_notes
-    - language_use
-    - context
-    - interpretative_comments
-    - distinctive_phrases
-    - emotional_responses
-    - reflexivity_comments
-    """
-    return call_chatgpt(prompt)
-def save_output(data, file_path, format="markdown"):
-    """Saves the data to a specified file format."""
+    prompt = f"..."
+    result = call_chatgpt(prompt)
     try:
-        directory = os.path.dirname(file_path)
-        if directory and not os.path.exists(directory):
-            os.makedirs(directory)
-        markdown_content = convert_to_markdown(data)
-        with open(file_path, 'w', encoding='utf-8') as file:
-            file.write(markdown_content)
-        st.success(f"IPA analysis complete. Results saved to {file_path}")
-    except Exception as e:
-        st.error(f"Failed to save the output file: {e}")
-        logger.error(f"Failed to save the output file: {e}")
+        return json.loads(result) if result else {}
+    except json.JSONDecodeError:
+        st.error("Stage 1 JSON parsing failed. Check the output format.")
+        logger.error("Stage 1 JSON parsing failed.")
+        return {}
 
 def stage2_experiential_statements(initial_notes):
-    """Stage 2: Transforming notes into experiential statements."""
-    prompt = f"""
-    Using the following initial notes from an IPA analysis, transform them into experiential statements.
-    Initial Notes:
-    {json.dumps(initial_notes, indent=2)}
-
-    Provide the experiential statements in a JSON array format.
-    """
-    return call_chatgpt(prompt)
+    prompt = f"..."
+    result = call_chatgpt(prompt)
+    try:
+        return json.loads(result) if result else []
+    except json.JSONDecodeError:
+        st.error("Stage 2 JSON parsing failed. Check the output format.")
+        logger.error("Stage 2 JSON parsing failed.")
+        return []
 
 def stage3_cluster_pet(es):
-    """Stage 3: Clustering experiential statements into Personal Experiential Themes (PETs)."""
-    prompt = f"""
-    Cluster the following experiential statements into Personal Experiential Themes (PETs).
-    ES: {json.dumps(es, indent=2)}
-    Output JSON with hierarchy: personal_experiential_theme -> description.
-    """
-    return call_chatgpt(prompt)
+    prompt = f"..."
+    result = call_chatgpt(prompt)
+    try:
+        return json.loads(result) if result else {}
+    except json.JSONDecodeError:
+        st.error("Stage 3 JSON parsing failed. Check the output format.")
+        logger.error("Stage 3 JSON parsing failed.")
+        return {}
 
 def stage4_get_writeup(pets, transcript):
-    """Stage 4: Writing up themes based on Personal and Group Experiential Themes."""
-    prompt = f"""
-    Write up the themes based on Personal Experiential Themes (PETs), including extracts and analytic comments.
-    PETs: {json.dumps(pets, indent=2)}
-    Transcript: {transcript}
-    Output JSON with hierarchy: group_experiential_theme -> personal_experiential_theme -> description, extracts, analytic_comments.
-    """
-    return call_chatgpt(prompt)
-
-def ipa_analysis_pipeline(transcript, output_path):
-    """Runs the full IPA analysis pipeline on a given transcript."""
+    prompt = f"..."
+    result = call_chatgpt(prompt)
     try:
-        transcript_text = transcript.read().decode("utf-8")
-        if not transcript_text.strip():
-            st.error("The uploaded transcript file is empty.")
+        return json.loads(result) if result else {}
+    except json.JSONDecodeError:
+        st.error("Stage 4 JSON parsing failed. Check the output format.")
+        logger.error("Stage 4 JSON parsing failed.")
+        return {}
+
+# Updated `ipa_analysis_pipeline` to handle parsing issues better
+def ipa_analysis_pipeline(transcript, output_path):
+    try:
+        transcript_text = transcript.read().decode("utf-8").strip()
+        if not transcript_text:
+            st.error("The uploaded transcript is empty.")
             return
     except Exception as e:
         st.error(f"Error reading the transcript file: {e}")
@@ -168,43 +112,39 @@ def ipa_analysis_pipeline(transcript, output_path):
     
     st.write("### Stage 1: Generating Initial Notes...")
     with st.spinner("Generating initial notes..."):
-        initial_notes_json = stage1_initial_notes(transcript_text)
-        initial_notes = json.loads(initial_notes_json) if initial_notes_json else {}
+        initial_notes = stage1_initial_notes(transcript_text)
+    
+    if not initial_notes:
+        st.error("Stage 1 failed. Analysis incomplete.")
+        return
 
     st.write("### Stage 2: Formulating Experiential Statements (ES)...")
     with st.spinner("Extracting ES..."):
-        es_json = stage2_experiential_statements(initial_notes)
-        es = json.loads(es_json) if es_json else []
+        es = stage2_experiential_statements(initial_notes)
+    
+    if not es:
+        st.error("Stage 2 failed. Analysis incomplete.")
+        return
 
     st.write("### Stage 3: Clustering PETs...")
     with st.spinner("Clustering PETs..."):
-        pets_json = stage3_cluster_pet(es)
-        pets = json.loads(pets_json) if pets_json else {}
+        pets = stage3_cluster_pet(es)
+    
+    if not pets:
+        st.error("Stage 3 failed. Analysis incomplete.")
+        return
 
     st.write("### Stage 4: Writing up GETs...")
     with st.spinner("Writing up GETs..."):
-        get_writeup_json = stage4_get_writeup(pets, transcript_text)
-        get_writeup = json.loads(get_writeup_json) if get_writeup_json else {}
-
+        get_writeup = stage4_get_writeup(pets, transcript_text)
+    
     if get_writeup:
         st.write("### Saving Final Analysis to Markdown...")
         save_output(get_writeup, output_path, format="markdown")
-        st.write("### Final Analysis (Markdown Format):")
         st.markdown(convert_to_markdown(get_writeup))
     else:
         st.error("Stage 4 failed. Analysis incomplete.")
 
-def main():
-    st.title("Interpretative Phenomenological Analysis (IPA) Tool")
-
-    uploaded_file = st.file_uploader("Choose a transcript text file", type=["txt"])
-    output_path = st.text_input("Enter the desired output file path (e.g., results/output_analysis.md)")
-
-    if st.button("Run IPA Analysis"):
-        if uploaded_file and output_path:
-            ipa_analysis_pipeline(uploaded_file, output_path)
-        else:
-            st.warning("Please upload a transcript file and specify an output path.")
-
+# Run the app
 if __name__ == "__main__":
     main()
