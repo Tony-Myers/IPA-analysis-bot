@@ -58,8 +58,8 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
 def convert_to_markdown(data):
     """Converts the analysis data to Markdown format."""
     markdown = ""
-    for theme in data.get("superordinate_themes", []):
-        markdown += f"## {theme['superordinate_theme']}\n\n"
+    for theme in data.get("personal_experiential_theme", []):
+        markdown += f"## {theme['personal_experiential_theme']}\n\n"
         for subtheme in theme.get("subthemes", []):
             markdown += f"### {subtheme['subtheme']}\n\n"
             markdown += f"**Description:** {subtheme.get('description', 'N/A')}\n\n"
