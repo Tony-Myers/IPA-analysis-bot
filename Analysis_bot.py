@@ -189,7 +189,6 @@ else:
 
     if not initial_notes:
         st.error("Stage 1 failed. Aborting the pipeline.")
-        return
 
     st.write("### Stage 2: Extracting Emergent Themes...")
     with st.spinner("Extracting emergent themes..."):
