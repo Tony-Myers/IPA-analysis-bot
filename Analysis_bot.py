@@ -22,7 +22,7 @@ except KeyError:
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retries=2):
     """
-    Calls the OpenAI API with enhanced JSON validation and sanitization.
+    Calls the OpenAI API and parses the JSON response.
     """
     try:
         response = client.chat.completions.create(
@@ -39,15 +39,27 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
 
         logger.info(f"Raw API Response: {result}")
 
-        # Sanitize content: ensure basic JSON format
-        sanitized_content = sanitize_json_response(result)
-        
-        # Validate and parse JSON
+        # Try to parse the result directly
         try:
-            return json.loads(sanitized_content)  # Attempt parsing
+            parsed_result = json.loads(result)
+            return parsed_result
         except json.JSONDecodeError as e:
-            logger.error(f"JSON parsing error after sanitization: {e}")
-            return {}  # Return empty JSON as a fallback on failure
+            logger.warning(f"Direct JSON parsing failed: {e}")
+            # Attempt to extract JSON content using regex
+            match = re.search(r"\{.*\}", result, re.DOTALL)
+            if match:
+                json_content = match.group(0)
+                try:
+                    parsed_result = json.loads(json_content)
+                    return parsed_result
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON parsing failed after extraction: {e}")
+                    st.error(f"JSON parsing error: {e}")
+                    return {}
+            else:
+                logger.error("No JSON object could be found in the response.")
+                st.error("No JSON object could be found in the response.")
+                return {}
 
     except openai.error.RateLimitError:
         if retries > 0:
@@ -63,35 +75,6 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
     except Exception as e:
         st.error(f"Unexpected error: {e}")
         return {}
-
-def sanitize_json_response(content):
-    """
-    Attempts to clean and validate JSON structure in API responses.
-    """
-    # Remove common extraneous content not part of JSON
-    content = content.replace("\n", "").replace("\r", "").strip()
-
-    # Check if content starts with '{' and ends with '}', indicative of JSON object
-    if not content.startswith("{") or not content.endswith("}"):
-        logger.warning("Response does not have typical JSON structure. Attempting to adjust.")
-        match = re.search(r"\{.*\}", content)
-        if match:
-            content = match.group(0)
-
-    # Final JSON validation: ensure balanced brackets
-    open_braces, close_braces = content.count("{"), content.count("}")
-    if open_braces != close_braces:
-        logger.error("Imbalanced JSON braces detected.")
-        return "{}"  # Return an empty JSON object if structure is invalid
-
-    return content
-
-    # Final JSON validation: ensure balanced brackets
-    open_braces, close_braces = content.count("{"), content.count("}")
-    if open_braces != close_braces:
-        logger.error("Imbalanced JSON braces detected.")
-        return "{}"  # Return an empty JSON object if structure is invalid
-        return content
 
 def ipa_analysis_pipeline(transcript, output_path):
     """Runs the full IPA analysis pipeline on a given transcript."""
@@ -146,11 +129,11 @@ def stage1_initial_notes(transcript_text):
     Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the following interview transcript.
     Conduct a close reading, making notes about observations, reflections, content, language use, context, and initial interpretative comments.
     Highlight distinctive phrases and emotional responses. Include any personal reflexivity comments if relevant.
-
+    
     Transcript:
     {transcript_text}
 
-    Provide the output in a structured JSON format with the following fields:
+    **Provide the output in valid JSON format with the following fields only:**
     - observations
     - reflections
     - content_notes
@@ -160,9 +143,12 @@ def stage1_initial_notes(transcript_text):
     - distinctive_phrases
     - emotional_responses
     - reflexivity_comments
+
+    **Ensure the output is valid JSON and does not include any additional text or explanation.**
     """
+
     result = call_chatgpt(prompt)
-    return json.loads(result) if result else {}
+    return result if result else {}
 
 def stage2_experiential_statements(initial_notes):
     """Stage 2: Transforming notes into experiential statements."""
