@@ -5,7 +5,9 @@ import time
 import os
 import logging
 import re
+import openai.error
 
+from openai.error import OpenAIError, RateLimitError
 from openai import OpenAI
 
 # Initialize logging
@@ -71,9 +73,13 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.2, retrie
             temperature=temperature,
         )
 
-        # The assistant's reply will be in response.choices[0].message.function_call
-        function_call = response.choices[0].message.get("function_call", {})
-        arguments = function_call.get("arguments", "{}")
+            message = response.choices[0].message
+            function_call = getattr(message, "function_call", None)
+
+    if function_call and hasattr(function_call, "arguments"):
+            arguments = function_call.arguments
+    else:
+    arguments = "{}"  # Default to an empty JSON object if no arguments are found
 
         logger.info(f"Raw API Response: {arguments}")
 
@@ -84,7 +90,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.2, retrie
         logger.error(f"JSON parsing failed: {e}")
         st.error(f"JSON parsing error: {e}")
         return {}
-    except openai.error.RateLimitError:
+   except RateLimitError:
         if retries > 0:
             st.warning("Rate limit exceeded. Retrying in 60 seconds...")
             time.sleep(60)
@@ -92,7 +98,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.2, retrie
         else:
             st.error("Rate limit exceeded.")
             return {}
-    except openai.error.OpenAIError as e:
+   except OpenAIError as e:
         st.error(f"OpenAI API error: {e}")
         return {}
     except Exception as e:
