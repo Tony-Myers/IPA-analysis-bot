@@ -175,15 +175,18 @@ def ipa_analysis_pipeline(transcript, output_path):
     st.write("### Stage 1: Generating Initial Notes...")
     with st.spinner("Generating initial notes..."):
         initial_notes_json = stage1_initial_notes(transcript_text)
+        
+if initial_notes_json:
+    try:
+        initial_notes = json.loads(initial_notes_json)
+        st.success("Stage 1 completed successfully.")
+    except json.JSONDecodeError:
+        st.error("Error parsing JSON from Stage 1. Please check the API response.")
+        logger.error("Error parsing JSON from Stage 1. Please check the API response.")
+        initial_notes = {}
+else:
+    initial_notes = {}
 
-    if initial_notes_json:
-        try:
-            initial_notes = json.loads(initial_notes_json)
-            st.success("Stage 1 completed successfully.")
-        except json.JSONDecodeError:
-            st.error("Error parsing JSON from Stage 1. Please check the API response.")
-            logger.error("Error parsing JSON from Stage 1. Please check the API response.")
-            initial_notes = {}
     else:
         initial_notes = {}
 
