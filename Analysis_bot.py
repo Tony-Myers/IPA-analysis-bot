@@ -33,7 +33,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1000, temperature=0.3, retrie
             temperature=temperature,
             stop=["}"]
         )
-        raw_content = response.choices[0].message.content.strip()
+               raw_content = response.choices[0].message['content'].strip()
         logger.info(f"Raw API Response: {raw_content}")
 
         # Sanitize content: ensure basic JSON format
@@ -71,7 +71,9 @@ def sanitize_json_response(content):
     # Check if content starts with '{' and ends with '}', indicative of JSON object
     if not content.startswith("{") or not content.endswith("}"):
         logger.warning("Response does not have typical JSON structure. Attempting to adjust.")
-        content = re.search(r"\{.*\}", content)  # Extract JSON portion if within other text
+        match = re.search(r"\{.*\}", content)
+        if match:
+            content = match.group(0)
 
     # Final JSON validation: ensure balanced brackets
     open_braces, close_braces = content.count("{"), content.count("}")
