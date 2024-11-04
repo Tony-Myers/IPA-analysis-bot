@@ -171,32 +171,30 @@ def ipa_analysis_pipeline(transcript, output_path):
         st.error(f"Error reading the transcript file: {e}")
         logger.error(f"Error reading the transcript file: {e}")
         return
-    
+
     st.write("### Stage 1: Generating Initial Notes...")
     with st.spinner("Generating initial notes..."):
         initial_notes_json = stage1_initial_notes(transcript_text)
-    
-        if initial_notes_json:
 
-    try:
-        initial_notes = json.loads(initial_notes_json)
-        st.success("Stage 1 completed successfully.")
-        return
-    except json.JSONDecodeError:
-        st.error("Error parsing JSON from Stage 1. Please check the API response.")
-        logger.error("Error parsing JSON from Stage 1. Please check the API response.")
+    if initial_notes_json:
+        try:
+            initial_notes = json.loads(initial_notes_json)
+            st.success("Stage 1 completed successfully.")
+        except json.JSONDecodeError:
+            st.error("Error parsing JSON from Stage 1. Please check the API response.")
+            logger.error("Error parsing JSON from Stage 1. Please check the API response.")
+            initial_notes = {}
+    else:
         initial_notes = {}
-else:
-    initial_notes = {}
-    
+
     if not initial_notes:
         st.error("Stage 1 failed. Aborting the pipeline.")
         return
-    
+
     st.write("### Stage 2: Extracting Emergent Themes...")
     with st.spinner("Extracting emergent themes..."):
         emergent_themes_json = stage2_emergent_themes(initial_notes)
-    
+
     if emergent_themes_json:
         try:
             emergent_themes = json.loads(emergent_themes_json)
@@ -207,15 +205,15 @@ else:
             emergent_themes = []
     else:
         emergent_themes = []
-    
+
     if not emergent_themes:
         st.error("Stage 2 failed. Aborting the pipeline.")
         return
-    
+
     st.write("### Stage 3: Clustering Themes...")
     with st.spinner("Clustering themes..."):
         clustered_themes_json = stage3_cluster_themes(emergent_themes)
-    
+
     if clustered_themes_json:
         try:
             clustered_themes = json.loads(clustered_themes_json)
@@ -226,15 +224,15 @@ else:
             clustered_themes = {}
     else:
         clustered_themes = {}
-    
+
     if not clustered_themes:
         st.error("Stage 3 failed. Aborting the pipeline.")
         return
-    
+
     st.write("### Stage 4: Writing Up Themes with Extracts and Comments...")
     with st.spinner("Writing up themes..."):
         write_up_json = stage4_write_up_themes(clustered_themes, transcript_text)
-    
+
     if write_up_json:
         try:
             write_up = json.loads(write_up_json)
@@ -259,18 +257,18 @@ else:
                 write_up = {}
     else:
         write_up = {}
-    
+
     if write_up:
         st.write("### Saving the Final Analysis to File...")
         markdown_content = convert_to_markdown(write_up)
         markdown_filename = f"{output_path}.md"
-        
+
         # Save the Markdown file
         save_output(write_up, markdown_filename)
-        
+
         st.write("### Final Analysis:")
         st.markdown(markdown_content)
-        
+
         # Provide download button for Markdown file
         st.write("### Download Results:")
         st.download_button(
@@ -281,6 +279,7 @@ else:
         )
     else:
         st.error("Stage 4 failed. Analysis incomplete.")
+
 
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool")
