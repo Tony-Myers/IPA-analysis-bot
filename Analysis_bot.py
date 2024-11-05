@@ -10,7 +10,7 @@ from openai import OpenAI
 
 try:
     api_key = st.secrets["openai_api_key"]
-    openai.api_key = api_key
+   client = OpenAI(api_key=os.getenv)
 except KeyError:
     st.error('OpenAI API key not found in secrets. Please add "openai_api_key" to your secrets.')
     st.stop()
