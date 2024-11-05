@@ -6,7 +6,7 @@ import os
 import logging
 import re
 
-from openai import OpenAIError, RateLimitError  # Corrected import statement
+from openai.error import OpenAIError, RateLimitError  # Adjusted to ensure proper import of error handling classes
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -181,4 +181,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
