@@ -32,15 +32,21 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
     Calls the OpenAI API and parses the JSON response.
     """
     try:
-        response = openai.Completion.create(
+        # Ensure proper API usage with ChatCompletion
+        response = openai.ChatCompletion.create(
             model=model,
-            prompt=prompt,
+            messages=[
+                {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
+                {"role": "user", "content": prompt}
+            ],
             max_tokens=max_tokens,
             temperature=temperature,
             stop=["}"]
         )
-        message_content = response['choices'][0]['text']
+        # Process the response as needed
+        message_content = response.choices[0].message.get("content", "{}")
         return json.loads(fix_json(message_content))
+
     except RateLimitError:
         if retries > 0:
             st.warning("Rate limit exceeded. Retrying in 60 seconds...")
@@ -49,12 +55,15 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
         else:
             st.error("Rate limit exceeded.")
             return {}
+
     except OpenAIError as e:
         st.error(f"OpenAI API error: {e}")
         return {}
+
     except Exception as e:
         st.error(f"Unexpected error: {e}")
         return {}
+
 
 def ipa_analysis_pipeline(transcript, output_path):
     try:
