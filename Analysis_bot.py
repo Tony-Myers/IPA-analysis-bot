@@ -31,22 +31,20 @@ def fix_json(json_string):
     # Replace single quotes with double quotes
     json_string = json_string.replace("'", '"')
 
-    # Add missing closing braces if necessary
+    # Count braces and add missing closing braces if necessary
     open_braces = json_string.count('{')
     close_braces = json_string.count('}')
     if open_braces > close_braces:
         json_string += '}' * (open_braces - close_braces)  # Add missing closing braces
 
-    # Add missing closing brackets if necessary
+    # Count brackets and add missing closing brackets if necessary
     open_brackets = json_string.count('[')
     close_brackets = json_string.count(']')
     if open_brackets > close_brackets:
         json_string += ']' * (open_brackets - close_brackets)  # Add missing closing brackets
 
     return json_string
-
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
-    """Calls the OpenAI API and attempts to parse the response as JSON."""
     try:
         response = client.chat.completions.create(
             model=model,
@@ -59,30 +57,37 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
             stop=["}"]
         )
 
-        # Display the raw response for debugging
-        st.write("Full API Response:", response)
-
         # Extract the message content
         content = response.choices[0].message.content
-        st.write("Raw content received:", content)  # Log the raw content to inspect
+        st.write("Raw content received:", content)
 
         if content:
-            # Try to fix the JSON structure
             fixed_content = fix_json(content)
-            st.write("Content after fix_json:", fixed_content)  # Log the adjusted content
-            
-            # Temporarily skip json.loads to inspect if fix_json is effective
-            # Uncomment json.loads only when sure the output looks like valid JSON
-            # try:
-            #     return json.loads(fixed_content)
-            # except json.JSONDecodeError as e:
-            #     st.error("Failed to parse JSON after fix_json adjustments.")
-            #     st.write(f"Error: {e}")
-            #     return {}
+            st.write("Content after fix_json:", fixed_content)
 
-            return fixed_content  # Return the fixed content for further inspection
+            # Uncomment to parse after validation
+            # return json.loads(fixed_content)
+
+            return fixed_content  # Temporarily returning for further inspection
         else:
             st.error("OpenAI API returned an empty response.")
+            return {}
+
+    except RateLimitError:
+        if retries > 0:
+            st.warning("Rate limit exceeded. Retrying in 60 seconds...")
+            time.sleep(60)
+            return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
+        else:
+            st.error("Rate limit exceeded.")
+            return {}
+    except OpenAIError as e:
+        st.error(f"OpenAI API error: {e}")
+        return {}
+    except Exception as e:
+        st.error(f"Unexpected error: {e}")
+        return {}
+ returned an empty response.")
             return {}
 
     except RateLimitError:
