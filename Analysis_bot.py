@@ -82,10 +82,6 @@ def ipa_analysis_pipeline(transcript, output_path):
     st.write("### Stage 1: Generating Initial Notes...")
     with st.spinner("Generating initial notes..."):
         initial_notes = stage1_initial_notes(transcript_text)
-    
-    if not initial_notes:
-        st.error("Stage 1 failed. Analysis incomplete.")
-        return
 
     st.write("### Stage 2: Formulating Experiential Statements (ES)...")
     with st.spinner("Extracting ES..."):
