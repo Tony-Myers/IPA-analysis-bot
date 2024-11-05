@@ -7,7 +7,7 @@ import logging
 import re
 
 # Import OpenAI-specific errors correctly
-from openai import OpenAIError, RateLimitError
+from openai import OpenAIError
 
 
 # Initialize logging
@@ -29,6 +29,8 @@ def fix_json(json_string):
     json_string = re.sub(r',\s*,', ',', json_string)
     return json_string
 
+from openai import OpenAIError  # Import OpenAIError only
+
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
     """
     Calls the OpenAI API and parses the JSON response.
@@ -49,17 +51,18 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
         message_content = response.choices[0].message.get("content", "{}")
         return json.loads(fix_json(message_content))
 
-    except RateLimitError:
-        if retries > 0:
+    except OpenAIError as e:
+        # Check for rate limit message in the error
+        if "Rate limit" in str(e) and retries > 0:
             st.warning("Rate limit exceeded. Retrying in 60 seconds...")
             time.sleep(60)
             return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
         else:
-            st.error("Rate limit exceeded.")
+            st.error(f"OpenAI API error: {e}")
             return {}
 
-    except OpenAIError as e:
-        st.error(f"OpenAI API error: {e}")
+    except Exception as e:
+        st.error(f"Unexpected error: {e}")
         return {}
 
     except Exception as e:
