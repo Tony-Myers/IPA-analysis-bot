@@ -87,7 +87,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
     except Exception as e:
         st.error(f"Unexpected error: {e}")
         return {}
- returned an empty response.")
+     returned an empty response.")
             return {}
 
     except RateLimitError:
