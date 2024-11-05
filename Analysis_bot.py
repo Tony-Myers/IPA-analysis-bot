@@ -6,7 +6,9 @@ import os
 import logging
 import re
 
-from openai.error import OpenAIError, RateLimitError  # Adjusted to ensure proper import of error handling classes
+# Import OpenAI-specific errors correctly
+from openai import OpenAIError, RateLimitError
+
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
