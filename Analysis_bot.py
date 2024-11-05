@@ -36,35 +36,46 @@ def fix_json(json_string):
 
     return json_string
 
-def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
+def call_chatgpt(prompt, model="gpt-4", max_tokens=100, temperature=0.01, retries=3):
     """
-    Calls the OpenAI API and parses the JSON response.
+    Sends a prompt to the OpenAI ChatGPT API and returns the response.
+    Includes basic error handling and rate limiting.
     """
     try:
-        # Ensure proper API usage with ChatCompletion
-         response = client.chat.completions.create(
-            model=model,
+        response = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
-                {"role": "user", "content": prompt}
+                {
+                    "role": "system",
+                    "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA).",
+                },
+                {"role": "user", "content": prompt},
             ],
+            model=model,
             max_tokens=max_tokens,
             temperature=temperature,
-            stop=["}"]
         )
-        # Process the response as needed
-        message_content = response.choices[0].message.get("content", "{}")
-        return json.loads(fix_json(message_content))
 
-    except Exception as e:
-        # Handle rate limits and other errors in a general way
-        if "Rate limit" in str(e) and retries > 0:
-            st.warning("Rate limit exceeded. Retrying in 60 seconds...")
+        # Log the response for debugging
+        logger.info(f"API Response: {response}")
+        return response.choices[0].message.content.strip()
+    except openai.error.RateLimitError:
+        if retries > 0:
+            st.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
+            logger.warning("Rate limit exceeded. Waiting for 60 seconds before retrying...")
             time.sleep(60)
             return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
         else:
-            st.error(f"API error: {e}")
-            return {}
+            st.error("Rate limit exceeded. Please try again later.")
+            logger.error("Rate limit exceeded.")
+            return ""
+    except openai.error.OpenAIError as e:
+        st.error(f"An OpenAI error occurred: {e}")
+        logger.error(f"OpenAIError: {e}")
+        return ""
+    except Exception as e:
+        st.error(f"An unexpected error occurred: {e}")
+        logger.error(f"Unexpected error: {e}")
+        return ""
 
 def ipa_analysis_pipeline(transcript, output_path):
     """Runs the full IPA analysis pipeline on a given transcript."""
