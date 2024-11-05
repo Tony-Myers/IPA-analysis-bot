@@ -39,12 +39,16 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
             temperature=temperature,
             stop=["}"]
         )
-        # Ensure content is not empty before parsing
-        content = response.choices[0].message.content
-        if content:
+
+        # Log the entire response for debugging
+        st.write("API Response:", response)
+
+        # Ensure response contains content
+        if response.choices and response.choices[0].message.content:
+            content = response.choices[0].message.content
             return json.loads(fix_json(content))
         else:
-            st.error("Received empty response from OpenAI.")
+            st.error("OpenAI API returned an empty response.")
             return {}
 
     except RateLimitError:
@@ -59,11 +63,12 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
         st.error(f"OpenAI API error: {e}")
         return {}
     except json.JSONDecodeError as e:
-        st.error(f"JSON decode error: {e}")
+        st.error(f"JSON decode error: {e}. Response might not be in JSON format.")
         return {}
     except Exception as e:
         st.error(f"Unexpected error: {e}")
         return {}
+
 
 def ipa_analysis_pipeline(transcript, output_path):
     """Runs the full IPA analysis pipeline on a given transcript."""
