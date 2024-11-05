@@ -2,34 +2,20 @@ import streamlit as st
 import openai
 import json
 import time
-import os
 import logging
 import re
-
-# Import OpenAI-specific errors correctly
-from openai import OpenAIError
-
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize OpenAI API Key
 try:
     api_key = st.secrets["openai_api_key"]
     openai.api_key = api_key
 except KeyError:
     st.error('OpenAI API key not found in secrets. Please add "openai_api_key" to your secrets.')
     st.stop()
-
-def fix_json(json_string):
-    json_string = re.sub(r'^[^{]*', '', json_string)
-    json_string = re.sub(r'[^}]*$', '', json_string)
-    json_string = re.sub(r',\s*([\]}])', r'\1', json_string)
-    json_string = json_string.replace("'", '"')
-    json_string = re.sub(r',\s*,', ',', json_string)
-    return json_string
-
-from openai import OpenAIError  # Import OpenAIError only
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
     """
@@ -51,24 +37,15 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
         message_content = response.choices[0].message.get("content", "{}")
         return json.loads(fix_json(message_content))
 
-    except OpenAIError as e:
-        # Check for rate limit message in the error
+    except Exception as e:
+        # Handle rate limits and other errors in a general way
         if "Rate limit" in str(e) and retries > 0:
             st.warning("Rate limit exceeded. Retrying in 60 seconds...")
             time.sleep(60)
             return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
         else:
-            st.error(f"OpenAI API error: {e}")
+            st.error(f"API error: {e}")
             return {}
-
-    except Exception as e:
-        st.error(f"Unexpected error: {e}")
-        return {}
-
-    except Exception as e:
-        st.error(f"Unexpected error: {e}")
-        return {}
-
 
 def ipa_analysis_pipeline(transcript, output_path):
     try:
