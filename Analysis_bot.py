@@ -3,7 +3,7 @@ import json
 import time
 import logging
 import re
-from openai import OpenAI
+from openai import OpenAI, OpenAIError, RateLimitError  # Import exceptions
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -18,9 +18,7 @@ except KeyError:
     st.stop()
 
 def fix_json(json_string):
-    """
-    Attempts to fix common JSON formatting errors in the assistant's response.
-    """
+    """Attempts to fix common JSON formatting errors in the assistant's response."""
     json_string = re.sub(r'^[^{]*', '', json_string)  # Remove any text before the first '{'
     json_string = re.sub(r'[^}]*$', '', json_string)  # Remove any text after the last '}'
     json_string = re.sub(r',\s*([\]}])', r'\1', json_string)  # Remove trailing commas
@@ -29,9 +27,7 @@ def fix_json(json_string):
     return json_string
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
-    """
-    Calls the OpenAI API and parses the JSON response.
-    """
+    """Calls the OpenAI API and parses the JSON response."""
     try:
         response = client.chat.completions.create(
             model=model,
@@ -43,9 +39,15 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
             temperature=temperature,
             stop=["}"]
         )
-        return json.loads(fix_json(response.choices[0].message.content))
-    
-    except client.error.RateLimitError:
+        # Ensure content is not empty before parsing
+        content = response.choices[0].message.content
+        if content:
+            return json.loads(fix_json(content))
+        else:
+            st.error("Received empty response from OpenAI.")
+            return {}
+
+    except RateLimitError:
         if retries > 0:
             st.warning("Rate limit exceeded. Retrying in 60 seconds...")
             time.sleep(60)
@@ -53,8 +55,11 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
         else:
             st.error("Rate limit exceeded.")
             return {}
-    except client.error.OpenAIError as e:
+    except OpenAIError as e:
         st.error(f"OpenAI API error: {e}")
+        return {}
+    except json.JSONDecodeError as e:
+        st.error(f"JSON decode error: {e}")
         return {}
     except Exception as e:
         st.error(f"Unexpected error: {e}")
