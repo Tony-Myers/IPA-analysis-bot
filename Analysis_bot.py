@@ -6,9 +6,7 @@ import os
 import logging
 import re
 
-from openai import Client
-from openai import OpenAIError, RateLimitError
-
+from openai.error import OpenAIError, RateLimitError
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -22,59 +20,43 @@ except KeyError:
     st.stop()
 
 def fix_json(json_string):
-    """
-    Attempts to fix common JSON formatting errors in the assistant's response.
-    """
-    # Remove any text before the first '{' and after the last '}'
     json_string = re.sub(r'^[^{]*', '', json_string)
     json_string = re.sub(r'[^}]*$', '', json_string)
-
-    # Remove trailing commas before closing braces or brackets
     json_string = re.sub(r',\s*([\]}])', r'\1', json_string)
-
-    # Replace single quotes with double quotes
     json_string = json_string.replace("'", '"')
-
-    # Remove extra commas
     json_string = re.sub(r',\s*,', ',', json_string)
-
     return json_string
-
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
     """
     Calls the OpenAI API and parses the JSON response.
     """
     try:
-    # Your code that calls the OpenAI API
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=max_tokens,
-        temperature=temperature,
-        stop=["}"]
-    )
-    # Process the response as needed
-except RateLimitError:
-    if retries > 0:
-        st.warning("Rate limit exceeded. Retrying in 60 seconds...")
-        time.sleep(60)
-        return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
-    else:
-        st.error("Rate limit exceeded.")
+        response = openai.Completion.create(
+            model=model,
+            prompt=prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stop=["}"]
+        )
+        message_content = response['choices'][0]['text']
+        return json.loads(fix_json(message_content))
+    except RateLimitError:
+        if retries > 0:
+            st.warning("Rate limit exceeded. Retrying in 60 seconds...")
+            time.sleep(60)
+            return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
+        else:
+            st.error("Rate limit exceeded.")
+            return {}
+    except OpenAIError as e:
+        st.error(f"OpenAI API error: {e}")
         return {}
-except OpenAIError as e:
-    st.error(f"OpenAI API error: {e}")
-    return {}
-except Exception as e:
-    st.error(f"Unexpected error: {e}")
-    return {}
+    except Exception as e:
+        st.error(f"Unexpected error: {e}")
+        return {}
 
 def ipa_analysis_pipeline(transcript, output_path):
-    """Runs the full IPA analysis pipeline on a given transcript."""
     try:
         transcript_text = transcript.read().decode("utf-8").strip()
         if not transcript_text:
@@ -121,7 +103,6 @@ def ipa_analysis_pipeline(transcript, output_path):
         st.error("Stage 4 failed. Analysis incomplete.")
         
 def stage1_initial_notes(transcript_text):
-    """Stage 1: Close reading and initial notes."""
     prompt = f"""
 Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the following interview transcript.
 
@@ -149,7 +130,6 @@ Transcript:
     return result if result else {}
 
 def stage2_experiential_statements(initial_notes):
-    """Stage 2: Transforming notes into experiential statements."""
     prompt = f"""
     Using the following initial notes from an IPA analysis, transform them into experiential statements.
     Initial Notes:
@@ -161,7 +141,6 @@ def stage2_experiential_statements(initial_notes):
     return result if result else []
 
 def stage3_cluster_pet(es):
-    """Stage 3: Clustering experiential statements into Personal Experiential Themes (PETs)."""
     prompt = f"""
     Cluster the following experiential statements into Personal Experiential Themes (PETs).
     ES: {json.dumps(es, indent=2)}
@@ -171,7 +150,6 @@ def stage3_cluster_pet(es):
     return result if result else {}
 
 def stage4_get_writeup(pets, transcript_text):
-    """Stage 4: Writing up themes based on Personal and Group Experiential Themes."""
     prompt = f"""
     Write up the themes based on Personal Experiential Themes (PETs), including extracts and analytic comments.
     PETs: {json.dumps(pets, indent=2)}
@@ -180,6 +158,14 @@ def stage4_get_writeup(pets, transcript_text):
     """
     result = call_chatgpt(prompt)
     return result if result else {}
+
+def save_output(content, path, format="markdown"):
+    with open(path, "w") as f:
+        f.write(content)
+
+def convert_to_markdown(content):
+    # Convert JSON data to markdown or text format for display
+    return "\n\n".join([f"## {k}\n\n{v}" for k, v in content.items()])
 
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool")
@@ -195,4 +181,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
