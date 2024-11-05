@@ -34,12 +34,14 @@ def fix_json(json_string):
     # Add missing closing braces if necessary
     open_braces = json_string.count('{')
     close_braces = json_string.count('}')
-    json_string += '}' * (open_braces - close_braces)  # Add missing closing braces
+    if open_braces > close_braces:
+        json_string += '}' * (open_braces - close_braces)  # Add missing closing braces
 
     # Add missing closing brackets if necessary
     open_brackets = json_string.count('[')
     close_brackets = json_string.count(']')
-    json_string += ']' * (open_brackets - close_brackets)  # Add missing closing brackets
+    if open_brackets > close_brackets:
+        json_string += ']' * (open_brackets - close_brackets)  # Add missing closing brackets
 
     return json_string
 
@@ -63,12 +65,13 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
         # Extract the message content
         content = response.choices[0].message.content
         if content:
-            # Try to load the content as JSON directly
+            # Attempt to parse with fixed JSON
             try:
-                return json.loads(fix_json(content))
+                fixed_content = fix_json(content)
+                return json.loads(fixed_content)
             except json.JSONDecodeError:
                 st.error("Content is not in valid JSON format. Raw content:")
-                st.write(content)
+                st.write(fixed_content)  # Log the fixed content for further debugging if needed
                 return {}
         else:
             st.error("OpenAI API returned an empty response.")
@@ -91,25 +94,6 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
     except Exception as e:
         st.error(f"Unexpected error: {e}")
         return {}
-
-    except RateLimitError:
-        if retries > 0:
-            st.warning("Rate limit exceeded. Retrying in 60 seconds...")
-            time.sleep(60)
-            return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
-        else:
-            st.error("Rate limit exceeded.")
-            return {}
-    except OpenAIError as e:
-        st.error(f"OpenAI API error: {e}")
-        return {}
-    except json.JSONDecodeError as e:
-        st.error(f"JSON decode error: {e}. Response might not be in JSON format.")
-        return {}
-    except Exception as e:
-        st.error(f"Unexpected error: {e}")
-        return {}
-
 
 def ipa_analysis_pipeline(transcript, output_path):
     """Runs the full IPA analysis pipeline on a given transcript."""
