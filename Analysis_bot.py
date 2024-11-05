@@ -46,7 +46,7 @@ def fix_json(json_string):
     return json_string
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
-    """Calls the OpenAI API and parses the JSON response."""
+    """Calls the OpenAI API and attempts to parse the response as JSON."""
     try:
         response = client.chat.completions.create(
             model=model,
@@ -59,17 +59,28 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
             stop=["}"]
         )
 
-        # Extract the message content directly
+        # Display the raw response for debugging
+        st.write("Full API Response:", response)
+
+        # Extract the message content
         content = response.choices[0].message.content
+        st.write("Raw content received:", content)  # Log the raw content to inspect
+
         if content:
-            # Attempt to parse with fixed JSON
-            try:
-                fixed_content = fix_json(content)
-                return json.loads(fixed_content)
-            except json.JSONDecodeError:
-                st.error("Content is not in valid JSON format. Raw content:")
-                st.write(fixed_content)  # Log the fixed content for further debugging if needed
-                return {}
+            # Try to fix the JSON structure
+            fixed_content = fix_json(content)
+            st.write("Content after fix_json:", fixed_content)  # Log the adjusted content
+            
+            # Temporarily skip json.loads to inspect if fix_json is effective
+            # Uncomment json.loads only when sure the output looks like valid JSON
+            # try:
+            #     return json.loads(fixed_content)
+            # except json.JSONDecodeError as e:
+            #     st.error("Failed to parse JSON after fix_json adjustments.")
+            #     st.write(f"Error: {e}")
+            #     return {}
+
+            return fixed_content  # Return the fixed content for further inspection
         else:
             st.error("OpenAI API returned an empty response.")
             return {}
@@ -84,9 +95,6 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
             return {}
     except OpenAIError as e:
         st.error(f"OpenAI API error: {e}")
-        return {}
-    except json.JSONDecodeError as e:
-        st.error(f"JSON decode error: {e}. Response might not be in JSON format.")
         return {}
     except Exception as e:
         st.error(f"Unexpected error: {e}")
