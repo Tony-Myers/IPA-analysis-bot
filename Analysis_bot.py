@@ -6,7 +6,7 @@ import os
 import logging
 import re
 from openai import OpenAI
-from openai import OpenAIError, RateLimitError
+from openai import RateLimitError
 
 
 # Initialize logging
