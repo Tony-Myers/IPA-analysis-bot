@@ -44,7 +44,9 @@ def fix_json(json_string):
         json_string += ']' * (open_brackets - close_brackets)  # Add missing closing brackets
 
     return json_string
+
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
+    """Calls the OpenAI API and attempts to parse the response as JSON."""
     try:
         response = client.chat.completions.create(
             model=model,
@@ -57,11 +59,15 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
             stop=["}"]
         )
 
+        # Display the raw response for debugging
+        st.write("Full API Response:", response)
+
         # Extract the message content
         content = response.choices[0].message.content
         st.write("Raw content received:", content)
 
         if content:
+            # Try to fix the JSON structure
             fixed_content = fix_json(content)
             st.write("Content after fix_json:", fixed_content)
 
@@ -71,23 +77,6 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
             return fixed_content  # Temporarily returning for further inspection
         else:
             st.error("OpenAI API returned an empty response.")
-            return {}
-
-    except RateLimitError:
-        if retries > 0:
-            st.warning("Rate limit exceeded. Retrying in 60 seconds...")
-            time.sleep(60)
-            return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
-        else:
-            st.error("Rate limit exceeded.")
-            return {}
-    except OpenAIError as e:
-        st.error(f"OpenAI API error: {e}")
-        return {}
-    except Exception as e:
-        st.error(f"Unexpected error: {e}")
-        return {}
-     returned an empty response.")
             return {}
 
     except RateLimitError:
@@ -227,4 +216,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
