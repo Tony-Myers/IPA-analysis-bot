@@ -74,10 +74,6 @@ def ipa_analysis_pipeline(transcript, output_path):
         if not transcript_text:
             st.error("The uploaded transcript is empty.")
             return
-    except Exception as e:
-        st.error(f"Error reading the transcript file: {e}")
-        logger.error(f"Error reading the transcript file: {e}")
-        return
     
     st.write("### Stage 1: Generating Initial Notes...")
     with st.spinner("Generating initial notes..."):
