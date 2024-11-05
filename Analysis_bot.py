@@ -40,16 +40,41 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
             stop=["}"]
         )
 
-        # Log the entire response for debugging
+        # Display the raw response for debugging
         st.write("API Response:", response)
 
-        # Ensure response contains content
-        if response.choices and response.choices[0].message.content:
-            content = response.choices[0].message.content
-            return json.loads(fix_json(content))
+        # Extract the message content
+        content = response.choices[0].message.content
+        if content:
+            # Try to load the content as JSON directly
+            try:
+                return json.loads(fix_json(content))
+            except json.JSONDecodeError:
+                st.error("Content is not in valid JSON format. Raw content:")
+                st.write(content)
+                return {}
         else:
             st.error("OpenAI API returned an empty response.")
             return {}
+
+    except RateLimitError:
+        if retries > 0:
+            st.warning("Rate limit exceeded. Retrying in 60 seconds...")
+            time.sleep(60)
+            return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
+        else:
+            st.error("Rate limit exceeded.")
+            return {}
+    except OpenAIError as e:
+        st.error(f"OpenAI API error: {e}")
+        return {}
+    except json.JSONDecodeError as e:
+        st.error(f"JSON decode error: {e}. Response might not be in JSON format.")
+        return {}
+    except Exception as e:
+        st.error(f"Unexpected error: {e}")
+        return {}
+
 
     except RateLimitError:
         if retries > 0:
