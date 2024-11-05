@@ -21,31 +21,33 @@ def fix_json(json_string):
     """
     Attempts to fix common JSON formatting errors in the assistant's response.
     """
-    # Remove any text before the first '{' and after the last '}' to trim non-JSON characters
+    # Remove any text before the first '{' and after the last '}' to isolate JSON-like content
     json_string = re.sub(r'^[^{]*', '', json_string)
     json_string = re.sub(r'[^}]*$', '', json_string)
 
     # Remove trailing commas before closing braces or brackets
     json_string = re.sub(r',\s*([\]}])', r'\1', json_string)
 
-    # Replace single quotes with double quotes
+    # Replace single quotes with double quotes to conform to JSON standard
     json_string = json_string.replace("'", '"')
 
-    # Balance braces and brackets
+    # Count and balance braces/brackets
     open_braces = json_string.count('{')
     close_braces = json_string.count('}')
     open_brackets = json_string.count('[')
     close_brackets = json_string.count(']')
 
-    # Add missing braces/brackets at the end of the JSON string
+    # If there are unbalanced braces, add necessary closing ones
     if open_braces > close_braces:
         json_string += '}' * (open_braces - close_braces)
     if open_brackets > close_brackets:
         json_string += ']' * (open_brackets - close_brackets)
 
-    # Ensure JSON ends correctly with all required closing braces/brackets
-    return json_string
+    # Final check: ensure JSON ends with a closing brace or bracket
+    if not json_string.endswith(('}', ']')):
+        json_string += '}'
 
+    return json_string
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
     """Calls the OpenAI API and attempts to parse the response as JSON."""
@@ -80,6 +82,21 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
         else:
             st.error("OpenAI API returned an empty response.")
             return {}
+
+    except RateLimitError:
+        if retries > 0:
+            st.warning("Rate limit exceeded. Retrying in 60 seconds...")
+            time.sleep(60)
+            return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
+        else:
+            st.error("Rate limit exceeded.")
+            return {}
+    except OpenAIError as e:
+        st.error(f"OpenAI API error: {e}")
+        return {}
+    except Exception as e:
+        st.error(f"Unexpected error: {e}")
+        return {}
 
     except RateLimitError:
         if retries > 0:
