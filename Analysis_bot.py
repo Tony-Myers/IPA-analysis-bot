@@ -1,9 +1,7 @@
 import streamlit as st
-import json
 import time
 import logging
-import re
-from openai import OpenAI, OpenAIError, RateLimitError  # Import exceptions
+from openai import OpenAI, OpenAIError, RateLimitError
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -17,40 +15,8 @@ except KeyError:
     st.error('OpenAI API key not found in secrets. Please add "OPENAI_API_KEY" to your secrets.')
     st.stop()
 
-def fix_json(json_string):
-    """
-    Attempts to fix common JSON formatting errors in the assistant's response.
-    """
-    # Remove any text before the first '{' and after the last '}' to isolate JSON-like content
-    json_string = re.sub(r'^[^{]*', '', json_string)
-    json_string = re.sub(r'[^}]*$', '', json_string)
-
-    # Remove trailing commas before closing braces or brackets
-    json_string = re.sub(r',\s*([\]}])', r'\1', json_string)
-
-    # Replace single quotes with double quotes to conform to JSON standard
-    json_string = json_string.replace("'", '"')
-
-    # Count and balance braces/brackets
-    open_braces = json_string.count('{')
-    close_braces = json_string.count('}')
-    open_brackets = json_string.count('[')
-    close_brackets = json_string.count(']')
-
-    # If there are unbalanced braces, add necessary closing ones
-    if open_braces > close_braces:
-        json_string += '}' * (open_braces - close_braces)
-    if open_brackets > close_brackets:
-        json_string += ']' * (open_brackets - close_brackets)
-
-    # Final check: ensure JSON ends with a closing brace or bracket
-    if not json_string.endswith(('}', ']')):
-        json_string += '}'
-
-    return json_string
-
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
-    """Calls the OpenAI API and attempts to parse the response as JSON."""
+    """Calls the OpenAI API and returns the response as text."""
     try:
         response = client.chat.completions.create(
             model=model,
@@ -63,25 +29,11 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
             stop=["}"]
         )
 
-        # Extract the message content
+        # Extract the message content as plain text
         content = response.choices[0].message.content
         st.write("Raw content received:", content)
-
-        if content:
-            # Attempt to fix the JSON structure
-            fixed_content = fix_json(content)
-            st.write("Content after fix_json:", fixed_content)
-
-            # Try parsing the fixed content
-            try:
-                return json.loads(fixed_content)
-            except json.JSONDecodeError as e:
-                st.error("Failed to parse JSON after fix_json adjustments.")
-                st.write(f"Error: {e}")
-                return {}
-        else:
-            st.error("OpenAI API returned an empty response.")
-            return {}
+        
+        return content  # Return the raw text content directly
 
     except RateLimitError:
         if retries > 0:
@@ -90,163 +42,90 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
             return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
         else:
             st.error("Rate limit exceeded.")
-            return {}
+            return ""
     except OpenAIError as e:
         st.error(f"OpenAI API error: {e}")
-        return {}
+        return ""
     except Exception as e:
         st.error(f"Unexpected error: {e}")
-        return {}
+        return ""
 
-    except RateLimitError:
-        if retries > 0:
-            st.warning("Rate limit exceeded. Retrying in 60 seconds...")
-            time.sleep(60)
-            return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
-        else:
-            st.error("Rate limit exceeded.")
-            return {}
-    except OpenAIError as e:
-        st.error(f"OpenAI API error: {e}")
-        return {}
-    except Exception as e:
-        st.error(f"Unexpected error: {e}")
-        return {}
-
-    except RateLimitError:
-        if retries > 0:
-            st.warning("Rate limit exceeded. Retrying in 60 seconds...")
-            time.sleep(60)
-            return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
-        else:
-            st.error("Rate limit exceeded.")
-            return {}
-    except OpenAIError as e:
-        st.error(f"OpenAI API error: {e}")
-        return {}
-    except Exception as e:
-        st.error(f"Unexpected error: {e}")
-        return {}
-
-def ipa_analysis_pipeline(transcript, output_path):
-    """Runs the full IPA analysis pipeline on a given transcript."""
+def ipa_analysis_pipeline(transcript):
+    """Runs the full IPA analysis pipeline on a given transcript and returns markdown content."""
     try:
         transcript_text = transcript.read().decode("utf-8").strip()
         if not transcript_text:
             st.error("The uploaded transcript is empty.")
-            return
+            return ""
     except Exception as e:
         st.error(f"Error reading the transcript file: {e}")
         logger.error(f"Error reading the transcript file: {e}")
-        return
+        return ""
     
     st.write("### Stage 1: Generating Initial Notes...")
     with st.spinner("Generating initial notes..."):
-        initial_notes = stage1_initial_notes(transcript_text)
+        initial_notes = call_chatgpt(f"Perform Stage 1 of IPA analysis on the transcript:\n\n{transcript_text}")
     
     if not initial_notes:
         st.error("Stage 1 failed. Analysis incomplete.")
-        return
+        return ""
 
     st.write("### Stage 2: Formulating Experiential Statements (ES)...")
     with st.spinner("Extracting ES..."):
-        es = stage2_experiential_statements(initial_notes)
+        es = call_chatgpt(f"Formulate Experiential Statements (ES) from the following notes:\n\n{initial_notes}")
     
     if not es:
         st.error("Stage 2 failed. Analysis incomplete.")
-        return
+        return ""
 
     st.write("### Stage 3: Clustering PETs...")
     with st.spinner("Clustering PETs..."):
-        pets = stage3_cluster_pet(es)
+        pets = call_chatgpt(f"Cluster the following ES into PETs:\n\n{es}")
     
     if not pets:
         st.error("Stage 3 failed. Analysis incomplete.")
-        return
+        return ""
 
     st.write("### Stage 4: Writing up GETs...")
     with st.spinner("Writing up GETs..."):
-        get_writeup = stage4_get_writeup(pets, transcript_text)
+        get_writeup = call_chatgpt(f"Write up themes based on PETs:\n\n{pets}")
     
     if get_writeup:
-        st.write("### Saving Final Analysis to Markdown...")
-        save_output(get_writeup, output_path, format="markdown")
-        st.markdown(convert_to_markdown(get_writeup))
+        # Prepare markdown content
+        markdown_content = (
+            "# IPA Analysis Report\n\n"
+            "## Stage 1: Initial Notes\n\n" + initial_notes + "\n\n"
+            "## Stage 2: Experiential Statements\n\n" + es + "\n\n"
+            "## Stage 3: Personal Experiential Themes (PETs)\n\n" + pets + "\n\n"
+            "## Stage 4: Group Experiential Themes (GETs)\n\n" + get_writeup
+        )
+        return markdown_content
     else:
         st.error("Stage 4 failed. Analysis incomplete.")
-        
-def stage1_initial_notes(transcript_text):
-    """Stage 1: Close reading and initial notes."""
-    prompt = f"""
-Perform Stage 1 of Interpretative Phenomenological Analysis (IPA) on the following interview transcript.
-
-Conduct a close reading, making notes about:
-- observations
-- reflections
-- notes
-- language use
-- context
-- interpretative comments
-- distinctive phrases
-- emotional responses
-- reflexivity comments
-
-**Instructions:**
-- Provide the output in **strictly valid JSON format**.
-- Ensure all necessary commas and syntax are included.
-- Do **not** include any additional text, comments, or explanations—only the JSON object.
-- Double-check your JSON for correctness before outputting.
-
-Transcript:
-{transcript_text}
-"""
-    result = call_chatgpt(prompt)
-    return result if result else {}
-
-def stage2_experiential_statements(initial_notes):
-    """Stage 2: Transforming notes into experiential statements."""
-    prompt = f"""
-    Using the following initial notes from an IPA analysis, transform them into experiential statements.
-    Initial Notes:
-    {json.dumps(initial_notes, indent=2)}
-
-    Provide the experiential statements in a JSON array format.
-    """
-    result = call_chatgpt(prompt)
-    return result if result else []
-
-def stage3_cluster_pet(es):
-    """Stage 3: Clustering experiential statements into Personal Experiential Themes (PETs)."""
-    prompt = f"""
-    Cluster the following experiential statements into Personal Experiential Themes (PETs).
-    ES: {json.dumps(es, indent=2)}
-    Output JSON with hierarchy: personal_experiential_theme -> description.
-    """
-    result = call_chatgpt(prompt)
-    return result if result else {}
-
-def stage4_get_writeup(pets, transcript_text):
-    """Stage 4: Writing up themes based on Personal and Group Experiential Themes."""
-    prompt = f"""
-    Write up the themes based on Personal Experiential Themes (PETs), including extracts and analytic comments.
-    PETs: {json.dumps(pets, indent=2)}
-    Transcript: {transcript_text}
-    Output JSON with hierarchy: group_experiential_theme -> personal_experiential_theme -> description, extracts, analytic_comments.
-    """
-    result = call_chatgpt(prompt)
-    return result if result else {}
+        return ""
 
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool")
 
     uploaded_file = st.file_uploader("Choose a transcript text file", type=["txt"])
-    output_path = st.text_input("Enter the desired output file path (e.g., results/output_analysis.md)")
 
     if st.button("Run IPA Analysis"):
-        if uploaded_file and output_path:
-            ipa_analysis_pipeline(uploaded_file, output_path)
+        if uploaded_file:
+            markdown_content = ipa_analysis_pipeline(uploaded_file)
+
+            if markdown_content:
+                # Show analysis results and provide download button
+                st.write("### Analysis Complete. Download the Report Below:")
+                st.download_button(
+                    label="Download Analysis Report",
+                    data=markdown_content,
+                    file_name="IPA_Analysis_Report.md",
+                    mime="text/markdown"
+                )
+                st.markdown("### Report Preview:")
+                st.markdown(markdown_content)
         else:
-            st.warning("Please upload a transcript file and specify an output path.")
+            st.warning("Please upload a transcript file.")
 
 if __name__ == "__main__":
     main()
