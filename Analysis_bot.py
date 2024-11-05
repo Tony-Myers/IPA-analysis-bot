@@ -59,10 +59,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
             stop=["}"]
         )
 
-        # Display the raw response for debugging
-        st.write("API Response:", response)
-
-        # Extract the message content
+        # Extract the message content directly
         content = response.choices[0].message.content
         if content:
             # Attempt to parse with fixed JSON
@@ -217,3 +214,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
