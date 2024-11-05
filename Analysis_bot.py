@@ -6,7 +6,6 @@ import os
 import logging
 import re
 from openai import OpenAI
-from openai import Client
 from openai import OpenAIError, RateLimitError
 
 
