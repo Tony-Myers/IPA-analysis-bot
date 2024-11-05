@@ -15,7 +15,7 @@ except KeyError:
     st.error('OpenAI API key not found in secrets. Please add "OPENAI_API_KEY" to your secrets.')
     st.stop()
 
-def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.1, retries=2):
+def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
     """Calls the OpenAI API and returns the response as text."""
     try:
         response = client.chat.completions.create(
@@ -64,9 +64,7 @@ def ipa_analysis_pipeline(transcript):
     
     st.write("### Stage 1: Generating Initial Notes...")
     with st.spinner("Generating initial notes..."):
-        initial_notes = call_chatgpt(
-            f"Please use British English spelling. Perform Stage 1 of IPA analysis on the transcript:\n\n{transcript_text}"
-        )
+        initial_notes = call_chatgpt(f"Perform Stage 1 of IPA analysis on the transcript:\n\n{transcript_text}")
     
     if not initial_notes:
         st.error("Stage 1 failed. Analysis incomplete.")
@@ -74,9 +72,7 @@ def ipa_analysis_pipeline(transcript):
 
     st.write("### Stage 2: Formulating Experiential Statements (ES)...")
     with st.spinner("Extracting ES..."):
-        es = call_chatgpt(
-            f"Please use British English spelling. Formulate Experiential Statements (ES) from the following notes:\n\n{initial_notes}"
-        )
+        es = call_chatgpt(f"Formulate Experiential Statements (ES) from the following notes:\n\n{initial_notes}")
     
     if not es:
         st.error("Stage 2 failed. Analysis incomplete.")
@@ -84,9 +80,7 @@ def ipa_analysis_pipeline(transcript):
 
     st.write("### Stage 3: Clustering PETs...")
     with st.spinner("Clustering PETs..."):
-        pets = call_chatgpt(
-            f"Please use British English spelling. Cluster the following ES into PETs:\n\n{es}"
-        )
+        pets = call_chatgpt(f"Cluster the following ES into PETs:\n\n{es}")
     
     if not pets:
         st.error("Stage 3 failed. Analysis incomplete.")
@@ -94,9 +88,7 @@ def ipa_analysis_pipeline(transcript):
 
     st.write("### Stage 4: Writing up GETs...")
     with st.spinner("Writing up GETs..."):
-        get_writeup = call_chatgpt(
-            f"Please use British English spelling. Write up themes based on PETs:\n\n{pets}"
-        )
+        get_writeup = call_chatgpt(f"Write up themes based on PETs:\n\n{pets}")
     
     if get_writeup:
         # Prepare markdown content
@@ -111,7 +103,6 @@ def ipa_analysis_pipeline(transcript):
     else:
         st.error("Stage 4 failed. Analysis incomplete.")
         return ""
-
 
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool")
