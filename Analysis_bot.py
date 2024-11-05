@@ -18,12 +18,29 @@ except KeyError:
     st.stop()
 
 def fix_json(json_string):
-    """Attempts to fix common JSON formatting errors in the assistant's response."""
-    json_string = re.sub(r'^[^{]*', '', json_string)  # Remove any text before the first '{'
-    json_string = re.sub(r'[^}]*$', '', json_string)  # Remove any text after the last '}'
-    json_string = re.sub(r',\s*([\]}])', r'\1', json_string)  # Remove trailing commas
-    json_string = json_string.replace("'", '"')  # Replace single quotes with double quotes
-    json_string = re.sub(r',\s*,', ',', json_string)  # Remove extra commas
+    """
+    Attempts to fix common JSON formatting errors in the assistant's response.
+    """
+    # Remove any text before the first '{' and after the last '}'
+    json_string = re.sub(r'^[^{]*', '', json_string)
+    json_string = re.sub(r'[^}]*$', '', json_string)
+
+    # Remove trailing commas before closing braces or brackets
+    json_string = re.sub(r',\s*([\]}])', r'\1', json_string)
+
+    # Replace single quotes with double quotes
+    json_string = json_string.replace("'", '"')
+
+    # Add missing closing braces if necessary
+    open_braces = json_string.count('{')
+    close_braces = json_string.count('}')
+    json_string += '}' * (open_braces - close_braces)  # Add missing closing braces
+
+    # Add missing closing brackets if necessary
+    open_brackets = json_string.count('[')
+    close_brackets = json_string.count(']')
+    json_string += ']' * (open_brackets - close_brackets)  # Add missing closing brackets
+
     return json_string
 
 def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
