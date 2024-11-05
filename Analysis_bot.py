@@ -42,7 +42,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
     """
     try:
         # Ensure proper API usage with ChatCompletion
-        response = openai.ChatCompletion.create(
+         response = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
