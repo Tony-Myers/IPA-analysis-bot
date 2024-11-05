@@ -75,7 +75,6 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
         st.error(f"Unexpected error: {e}")
         return {}
 
-
     except RateLimitError:
         if retries > 0:
             st.warning("Rate limit exceeded. Retrying in 60 seconds...")
