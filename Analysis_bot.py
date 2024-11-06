@@ -66,7 +66,8 @@ def ipa_analysis_pipeline(transcript):
     st.write("### Stage 1: Generating Initial Notes...")
     with st.spinner("Generating initial notes..."):
         initial_notes = call_chatgpt(
-            f"Perform Stage 1 of IPA analysis on the transcript:\n\n{transcript_text}",
+            f"Perform Stage 1 of IPA analysis on the participant's responses in the transcript. "
+            f"Only use the participant’s responses and exclude any interviewer questions or comments.\n\nTranscript:\n{transcript_text}",
             temperature=0.2  # Low temperature for deterministic results
         )
     
@@ -78,8 +79,8 @@ def ipa_analysis_pipeline(transcript):
     st.write("### Stage 2: Formulating Experiential Statements (ES)...")
     with st.spinner("Extracting ES..."):
         es = call_chatgpt(
-            f"Based on the following initial notes, formulate Experiential Statements (ES) in a standardized list. "
-            f"Each ES should concisely summarize a key insight from the initial notes.\n\nInitial Notes:\n{initial_notes}",
+            f"Based on the following initial notes, formulate Experiential Statements (ES) focusing solely on the participant’s responses. "
+            f"Exclude any interviewer questions or comments.\n\nInitial Notes:\n{initial_notes}",
             temperature=0.3
         )
     
@@ -94,7 +95,7 @@ def ipa_analysis_pipeline(transcript):
             f"Using the following Experiential Statements (ES), cluster them into Personal Experiential Themes (PETs). "
             f"For each PET, provide:\n\n"
             f"- **Theme Name**: A concise, creative title.\n"
-            f"- **Participant Quotes**: Short verbatim quotes to support the theme (use ellipses if necessary to shorten).\n"
+            f"- **Participant Quotes**: Only use the participant's words, excluding any interviewer questions. Enclose each quote in inverted commas and truncate with ellipses if necessary to maintain brevity.\n"
             f"- **Researcher Comments**: Concisely explain why the theme is relevant based on participant responses.\n\n"
             f"Experiential Statements:\n{es}",
             temperature=0.5
@@ -108,10 +109,10 @@ def ipa_analysis_pipeline(transcript):
     st.write("### Stage 4: Writing up GETs...")
     with st.spinner("Writing up GETs..."):
         get_writeup = call_chatgpt(
-            f"Based on the following Personal Experiential Themes (PETs), synthesize Group Experiential Themes (GETs) as follows:\n\n"
+            f"Based on the following Personal Experiential Themes (PETs), synthesise Group Experiential Themes (GETs) as follows:\n\n"
             f"- **Theme Name**: A group-level theme that captures the collective meaning across PETs.\n"
             f"- **Summary**: A short description of the shared experience reflected in this theme.\n"
-            f"- **Justifications**: Explain and justify the theme using patterns found in the PETs, referencing supporting quotes where appropriate.\n\n"
+            f"- **Justifications**: Explain and justify the theme using patterns found in the PETs, referencing supporting quotes where appropriate. Use only the participant’s responses and exclude any interviewer questions or comments.\n\n"
             f"Personal Experiential Themes (PETs):\n{pets}",
             temperature=0.7  # Higher temperature for abstract and creative synthesis
         )
@@ -155,4 +156,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
