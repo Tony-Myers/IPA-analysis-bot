@@ -67,7 +67,7 @@ def ipa_analysis_pipeline(transcript):
     with st.spinner("Generating initial notes..."):
         initial_notes = call_chatgpt(
             f"Perform Stage 1 of IPA analysis on the transcript:\n\n{transcript_text}",
-            temperature=0.01  # Low temperature for deterministic results
+            temperature=0.1  # Low temperature for deterministic results
         )
     
     if not initial_notes:
@@ -78,32 +78,41 @@ def ipa_analysis_pipeline(transcript):
     st.write("### Stage 2: Formulating Experiential Statements (ES)...")
     with st.spinner("Extracting ES..."):
         es = call_chatgpt(
-            f"Formulate Experiential Statements (ES) from the following notes:\n\n{initial_notes}",
-            temperature=0.2  # Slightly more creative, but still structured
+            f"Formulate standardized Experiential Statements (ES) from the following notes:\n\n{initial_notes}\n"
+            "Format each ES as a numbered list, clearly stating the experiential theme.",
+            temperature=0.3
         )
     
     if not es:
         st.error("Stage 2 failed. Analysis incomplete.")
         return ""
 
-    # Stage 3: Clustering PETs
+    # Stage 3: Clustering PETs with Quotes and Justifications
     st.write("### Stage 3: Clustering PETs...")
     with st.spinner("Clustering PETs..."):
         pets = call_chatgpt(
-            f"Cluster the following ES into PETs:\n\n{es}",
-            temperature=0.6  # More creativity for clustering themes
+            f"Cluster the following ES into PETs (Personal Experiential Themes), each with the following structure:\n\n"
+            "- Theme Name: (Creative title with moderate temperature)\n"
+            "- Participant Quotes: Short verbatim quotes from the transcript to justify each PET\n"
+            "- Researcher Comments: Summarize the significance and recurring elements of the theme\n\n"
+            "Use quotes from the relevant participant to enhance each theme justification.",
+            temperature=0.5  # Medium temperature to foster creativity in theme naming
         )
     
     if not pets:
         st.error("Stage 3 failed. Analysis incomplete.")
         return ""
 
-    # Stage 4: Writing up GETs
+    # Stage 4: Writing up GETs with Justifications Based on PETs
     st.write("### Stage 4: Writing up GETs...")
     with st.spinner("Writing up GETs..."):
         get_writeup = call_chatgpt(
-            f"Write up themes based on PETs:\n\n{pets}",
-            temperature=0.8  # Higher temperature for generating unique theme descriptions
+            f"Based on the following PETs, write Group Experiential Themes (GETs) as abstract group-level themes.\n\n"
+            "Each GET should include:\n"
+            "- Theme Name: (Creative group theme name)\n"
+            "- Summary: Abstract description of the theme that synthesizes PETs\n"
+            "- Justifications: Supporting comments and analysis linking to the PETs\n\n",
+            temperature=0.8  # Higher temperature for creative synthesis
         )
     
     if get_writeup:
