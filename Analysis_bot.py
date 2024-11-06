@@ -67,7 +67,7 @@ def ipa_analysis_pipeline(transcript):
     with st.spinner("Generating initial notes..."):
         initial_notes = call_chatgpt(
             f"Perform Stage 1 of IPA analysis on the transcript:\n\n{transcript_text}",
-            temperature=0.2  # Low temperature for deterministic results
+            temperature=0.1  # Low temperature for deterministic results
         )
     
     if not initial_notes:
