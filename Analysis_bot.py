@@ -88,14 +88,14 @@ def ipa_analysis_pipeline(transcript):
         st.error("Stage 2 failed. Analysis incomplete.")
         return ""
 
-    # Stage 3: Clustering PETs with Direct Quotes and Justifications
+    # Stage 3: Clustering PETs with Direct, Verbatim Quotes and Justifications
     st.write("### Stage 3: Clustering PETs...")
     with st.spinner("Clustering PETs..."):
         pets = call_chatgpt(
             f"Using the following Experiential Statements (ES), cluster them into Personal Experiential Themes (PETs). "
             f"For each PET, provide:\n\n"
             f"- **Theme Name**: A concise, creative title.\n"
-            f"- **Participant Quotes**: Include direct verbatim quotes from participants to support the theme. Each quote should be enclosed in inverted commas and can be truncated with ellipses if necessary to maintain brevity. Do not summarise or paraphrase the quotes.\n"
+            f"- **Participant Quotes**: Include direct, verbatim quotes from participants to support the theme. Use only the participant's exact words as they appear in the transcript, without any interpretation, additions, or paraphrasing such as 'the participant.' Each quote should be enclosed in inverted commas and can be truncated with ellipses if necessary to maintain brevity.\n"
             f"- **Researcher Comments**: Concisely explain the relevance of the theme based on participant responses and how it reflects their experiences.\n\n"
             f"Experiential Statements:\n{es}",
             temperature=0.5
@@ -105,14 +105,14 @@ def ipa_analysis_pipeline(transcript):
         st.error("Stage 3 failed. Analysis incomplete.")
         return ""
 
-    # Stage 4: Writing up GETs with Explanations and Justifications
+    # Stage 4: Writing up GETs with Verbatim Quotes and Justifications
     st.write("### Stage 4: Writing up GETs...")
     with st.spinner("Writing up GETs..."):
         get_writeup = call_chatgpt(
             f"Based on the following Personal Experiential Themes (PETs), synthesise Group Experiential Themes (GETs) as follows:\n\n"
             f"- **Theme Name**: A group-level theme that captures the collective meaning across PETs.\n"
             f"- **Summary**: A short description of the shared experience reflected in this theme.\n"
-            f"- **Justifications**: Explain and justify the theme using direct participant quotes from PETs. Use verbatim quotes where necessary, enclosing each in inverted commas. Truncate quotes with ellipses if needed, without summarising.\n\n"
+            f"- **Justifications**: Explain and justify the theme using only direct participant quotes from PETs, with no additional language or interpretation. Use only the participant's exact words as they appear in the transcript, enclosed in inverted commas. Truncate quotes with ellipses if needed, without summarising.\n\n"
             f"Personal Experiential Themes (PETs):\n{pets}",
             temperature=0.7
         )
@@ -130,6 +130,7 @@ def ipa_analysis_pipeline(transcript):
     else:
         st.error("Stage 4 failed. Analysis incomplete.")
         return ""
+
 
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool")
