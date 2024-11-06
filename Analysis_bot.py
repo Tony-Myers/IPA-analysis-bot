@@ -62,33 +62,49 @@ def ipa_analysis_pipeline(transcript):
         logger.error(f"Error reading the transcript file: {e}")
         return ""
     
+    # Stage 1: Generating Initial Notes
     st.write("### Stage 1: Generating Initial Notes...")
     with st.spinner("Generating initial notes..."):
-        initial_notes = call_chatgpt(f"Perform Stage 1 of IPA analysis on the transcript:\n\n{transcript_text}")
+        initial_notes = call_chatgpt(
+            f"Perform Stage 1 of IPA analysis on the transcript:\n\n{transcript_text}",
+            temperature=0.2  # Low temperature for deterministic results
+        )
     
     if not initial_notes:
         st.error("Stage 1 failed. Analysis incomplete.")
         return ""
 
+    # Stage 2: Formulating Experiential Statements (ES)
     st.write("### Stage 2: Formulating Experiential Statements (ES)...")
     with st.spinner("Extracting ES..."):
-        es = call_chatgpt(f"Formulate Experiential Statements (ES) from the following notes:\n\n{initial_notes}")
+        es = call_chatgpt(
+            f"Formulate Experiential Statements (ES) from the following notes:\n\n{initial_notes}",
+            temperature=0.3  # Slightly more creative, but still structured
+        )
     
     if not es:
         st.error("Stage 2 failed. Analysis incomplete.")
         return ""
 
+    # Stage 3: Clustering PETs
     st.write("### Stage 3: Clustering PETs...")
     with st.spinner("Clustering PETs..."):
-        pets = call_chatgpt(f"Cluster the following ES into PETs:\n\n{es}")
+        pets = call_chatgpt(
+            f"Cluster the following ES into PETs:\n\n{es}",
+            temperature=0.5  # More creativity for clustering themes
+        )
     
     if not pets:
         st.error("Stage 3 failed. Analysis incomplete.")
         return ""
 
+    # Stage 4: Writing up GETs
     st.write("### Stage 4: Writing up GETs...")
     with st.spinner("Writing up GETs..."):
-        get_writeup = call_chatgpt(f"Write up themes based on PETs:\n\n{pets}")
+        get_writeup = call_chatgpt(
+            f"Write up themes based on PETs:\n\n{pets}",
+            temperature=0.7  # Higher temperature for generating unique theme descriptions
+        )
     
     if get_writeup:
         # Prepare markdown content
