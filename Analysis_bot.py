@@ -21,7 +21,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA). Please use British English spelling in your responses."},
+                {"role": "system", "content": "You are an expert qualitative researcher specialising in Interpretative Phenomenological Analysis (IPA). Please use British English spelling in all responses, including quotes."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=max_tokens,
@@ -67,7 +67,7 @@ def ipa_analysis_pipeline(transcript):
     with st.spinner("Generating initial notes..."):
         initial_notes = call_chatgpt(
             f"Perform Stage 1 of IPA analysis on the participant's responses in the transcript. "
-            f"Only use the participant’s responses and exclude any interviewer questions or comments.\n\nTranscript:\n{transcript_text}",
+            f"Only use the participant’s responses and exclude any interviewer questions or comments. Use British English spelling throughout.\n\nTranscript:\n{transcript_text}",
             temperature=0.2
         )
     
@@ -80,7 +80,7 @@ def ipa_analysis_pipeline(transcript):
     with st.spinner("Extracting ES..."):
         es = call_chatgpt(
             f"Based on the following initial notes, formulate Experiential Statements (ES) focusing solely on the participant’s responses. "
-            f"Exclude any interviewer questions or comments.\n\nInitial Notes:\n{initial_notes}",
+            f"Exclude any interviewer questions or comments. Use British English spelling in all statements.\n\nInitial Notes:\n{initial_notes}",
             temperature=0.3
         )
     
@@ -95,7 +95,9 @@ def ipa_analysis_pipeline(transcript):
             f"Using the following Experiential Statements (ES), cluster them into Personal Experiential Themes (PETs). "
             f"For each PET, provide:\n\n"
             f"- **Theme Name**: A concise, creative title.\n"
-            f"- **Participant Quotes**: Use only direct, verbatim quotes from the transcript with no summary, interpretation, or added language. Do not use phrases like 'the participant.' Only the exact words spoken by the participant should be quoted, as they appear in the transcript, with inverted commas around each quote. If a quote needs truncation, use ellipses without altering the participant's wording.\n"
+            f"- **Participant Quotes**: Use only direct, verbatim quotes from the transcript with no summary, interpretation, or added language. "
+            f"Do not use phrases like 'the participant.' Only the exact words spoken by the participant should be quoted, as they appear in the transcript, with inverted commas around each quote. "
+            f"Use British English spelling. If a quote needs truncation, use ellipses without altering the participant's wording.\n"
             f"- **Researcher Comments**: Briefly explain the relevance of the theme based solely on the quotes provided, without rephrasing or summarising the participant's words.\n\n"
             f"Experiential Statements:\n{es}",
             temperature=0.5
@@ -112,7 +114,8 @@ def ipa_analysis_pipeline(transcript):
             f"Based on the following Personal Experiential Themes (PETs), synthesise Group Experiential Themes (GETs) as follows:\n\n"
             f"- **Theme Name**: A group-level theme that captures the collective meaning across PETs.\n"
             f"- **Summary**: A short description of the shared experience reflected in this theme.\n"
-            f"- **Justifications**: Use only direct, verbatim participant quotes from the transcript, without rephrasing, summarising, or adding interpretation. Each quote should be enclosed in inverted commas, with ellipses if needed to shorten. Avoid any added language, including phrases like 'the participant.'\n\n"
+            f"- **Justifications**: Use only direct, verbatim participant quotes from the transcript, without rephrasing, summarising, or adding interpretation. "
+            f"Each quote should be enclosed in inverted commas, with ellipses if needed to shorten. Avoid any added language, including phrases like 'the participant.' Use British English spelling.\n\n"
             f"Personal Experiential Themes (PETs):\n{pets}",
             temperature=0.7
         )
