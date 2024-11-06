@@ -21,7 +21,7 @@ def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retrie
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA)."},
+                {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA). Please use British English spelling in your responses."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=max_tokens,
@@ -78,8 +78,8 @@ def ipa_analysis_pipeline(transcript):
     st.write("### Stage 2: Formulating Experiential Statements (ES)...")
     with st.spinner("Extracting ES..."):
         es = call_chatgpt(
-            f"Based on the following initial notes, formulate standardized Experiential Statements (ES) in list format. "
-            f"Each ES should concisely summarize a key experience or insight from the initial notes.\n\nInitial Notes:\n{initial_notes}",
+            f"Based on the following initial notes, formulate Experiential Statements (ES) in a standardized list. "
+            f"Each ES should concisely summarize a key insight from the initial notes.\n\nInitial Notes:\n{initial_notes}",
             temperature=0.3
         )
     
@@ -87,34 +87,33 @@ def ipa_analysis_pipeline(transcript):
         st.error("Stage 2 failed. Analysis incomplete.")
         return ""
 
-    # Stage 3: Clustering PETs with Quotes and Justifications
+    # Stage 3: Clustering PETs with Direct Quotes and Justifications
     st.write("### Stage 3: Clustering PETs...")
     with st.spinner("Clustering PETs..."):
         pets = call_chatgpt(
-            f"Based on the following Experiential Statements (ES), cluster them into Personal Experiential Themes (PETs) "
-            f"using the structure below:\n\n"
-            f"- **Theme Name**: (A short, creative title)\n"
-            f"- **Participant Quotes**: Include verbatim quotes from the transcript to illustrate each PET.\n"
-            f"- **Researcher Comments**: Provide insights about the relevance and patterns observed in the PET.\n\n"
+            f"Using the following Experiential Statements (ES), cluster them into Personal Experiential Themes (PETs). "
+            f"For each PET, provide:\n\n"
+            f"- **Theme Name**: A concise, creative title.\n"
+            f"- **Participant Quotes**: Short verbatim quotes to support the theme (use ellipses if necessary to shorten).\n"
+            f"- **Researcher Comments**: Concisely explain why the theme is relevant based on participant responses.\n\n"
             f"Experiential Statements:\n{es}",
-            temperature=0.5  # Medium temperature to foster creativity in theme naming
+            temperature=0.5
         )
     
     if not pets:
         st.error("Stage 3 failed. Analysis incomplete.")
         return ""
 
-    # Stage 4: Writing up GETs with Justifications Based on PETs
+    # Stage 4: Writing up GETs with Explanations and Justifications
     st.write("### Stage 4: Writing up GETs...")
     with st.spinner("Writing up GETs..."):
         get_writeup = call_chatgpt(
-            f"Based on the following Personal Experiential Themes (PETs), write up Group Experiential Themes (GETs) with "
-            f"the following structure:\n\n"
-            f"- **Theme Name**: (A group-level theme that abstracts the PETs)\n"
-            f"- **Summary**: A description that encapsulates the overarching theme represented by the GET.\n"
-            f"- **Justifications**: Add comments linking this GET back to the PETs, summarizing key insights.\n\n"
+            f"Based on the following Personal Experiential Themes (PETs), synthesize Group Experiential Themes (GETs) as follows:\n\n"
+            f"- **Theme Name**: A group-level theme that captures the collective meaning across PETs.\n"
+            f"- **Summary**: A short description of the shared experience reflected in this theme.\n"
+            f"- **Justifications**: Explain and justify the theme using patterns found in the PETs, referencing supporting quotes where appropriate.\n\n"
             f"Personal Experiential Themes (PETs):\n{pets}",
-            temperature=0.7  # Higher temperature for creative synthesis
+            temperature=0.7  # Higher temperature for abstract and creative synthesis
         )
     
     if get_writeup:
