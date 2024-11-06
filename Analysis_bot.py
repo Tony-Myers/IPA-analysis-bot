@@ -67,7 +67,7 @@ def ipa_analysis_pipeline(transcript):
     with st.spinner("Generating initial notes..."):
         initial_notes = call_chatgpt(
             f"Perform Stage 1 of IPA analysis on the transcript:\n\n{transcript_text}",
-            temperature=0.1  # Low temperature for deterministic results
+            temperature=0.01  # Low temperature for deterministic results
         )
     
     if not initial_notes:
@@ -79,7 +79,7 @@ def ipa_analysis_pipeline(transcript):
     with st.spinner("Extracting ES..."):
         es = call_chatgpt(
             f"Formulate Experiential Statements (ES) from the following notes:\n\n{initial_notes}",
-            temperature=0.3  # Slightly more creative, but still structured
+            temperature=0.2  # Slightly more creative, but still structured
         )
     
     if not es:
@@ -91,7 +91,7 @@ def ipa_analysis_pipeline(transcript):
     with st.spinner("Clustering PETs..."):
         pets = call_chatgpt(
             f"Cluster the following ES into PETs:\n\n{es}",
-            temperature=0.5  # More creativity for clustering themes
+            temperature=0.6  # More creativity for clustering themes
         )
     
     if not pets:
@@ -103,7 +103,7 @@ def ipa_analysis_pipeline(transcript):
     with st.spinner("Writing up GETs..."):
         get_writeup = call_chatgpt(
             f"Write up themes based on PETs:\n\n{pets}",
-            temperature=0.7  # Higher temperature for generating unique theme descriptions
+            temperature=0.8  # Higher temperature for generating unique theme descriptions
         )
     
     if get_writeup:
