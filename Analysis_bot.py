@@ -68,7 +68,7 @@ def ipa_analysis_pipeline(transcript):
         initial_notes = call_chatgpt(
             f"Perform Stage 1 of IPA analysis on the participant's responses in the transcript. "
             f"Only use the participant’s responses and exclude any interviewer questions or comments.\n\nTranscript:\n{transcript_text}",
-            temperature=0.2  # Low temperature for deterministic results
+            temperature=0.2
         )
     
     if not initial_notes:
@@ -95,8 +95,8 @@ def ipa_analysis_pipeline(transcript):
             f"Using the following Experiential Statements (ES), cluster them into Personal Experiential Themes (PETs). "
             f"For each PET, provide:\n\n"
             f"- **Theme Name**: A concise, creative title.\n"
-            f"- **Participant Quotes**: Only use the participant's words, excluding any interviewer questions. Enclose each quote in inverted commas and truncate with ellipses if necessary to maintain brevity.\n"
-            f"- **Researcher Comments**: Concisely explain why the theme is relevant based on participant responses.\n\n"
+            f"- **Participant Quotes**: Include direct verbatim quotes from participants to support the theme. Each quote should be enclosed in inverted commas and can be truncated with ellipses if necessary to maintain brevity. Do not summarise or paraphrase the quotes.\n"
+            f"- **Researcher Comments**: Concisely explain the relevance of the theme based on participant responses and how it reflects their experiences.\n\n"
             f"Experiential Statements:\n{es}",
             temperature=0.5
         )
@@ -112,9 +112,9 @@ def ipa_analysis_pipeline(transcript):
             f"Based on the following Personal Experiential Themes (PETs), synthesise Group Experiential Themes (GETs) as follows:\n\n"
             f"- **Theme Name**: A group-level theme that captures the collective meaning across PETs.\n"
             f"- **Summary**: A short description of the shared experience reflected in this theme.\n"
-            f"- **Justifications**: Explain and justify the theme using patterns found in the PETs, referencing supporting quotes where appropriate. Use only the participant’s responses and exclude any interviewer questions or comments.\n\n"
+            f"- **Justifications**: Explain and justify the theme using direct participant quotes from PETs. Use verbatim quotes where necessary, enclosing each in inverted commas. Truncate quotes with ellipses if needed, without summarising.\n\n"
             f"Personal Experiential Themes (PETs):\n{pets}",
-            temperature=0.7  # Higher temperature for abstract and creative synthesis
+            temperature=0.7
         )
     
     if get_writeup:
