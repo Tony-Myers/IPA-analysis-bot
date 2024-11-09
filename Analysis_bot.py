@@ -99,7 +99,14 @@ def ipa_analysis_pipeline(transcripts):
     # Process each transcript individually
     for i, transcript in enumerate(transcripts):
         try:
-            transcript_text = transcript.read().decode("utf-8").strip()
+            # Try to read the transcript with UTF-8 encoding
+            try:
+                transcript_text = transcript.read().decode("utf-8").strip()
+            except UnicodeDecodeError:
+                # Fallback to ISO-8859-1 if UTF-8 decoding fails
+                transcript.seek(0)  # Reset file pointer to the beginning
+                transcript_text = transcript.read().decode("ISO-8859-1").strip()
+
             if not transcript_text:
                 st.error(f"The uploaded transcript {i+1} is empty.")
                 return ""
@@ -129,6 +136,7 @@ def ipa_analysis_pipeline(transcripts):
         )
     markdown_content += "## Stage 4: Group Experiential Themes (GETs)\n\n" + get_writeup
     return markdown_content
+
 
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool")
