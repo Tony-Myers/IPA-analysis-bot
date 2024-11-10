@@ -45,10 +45,11 @@ def call_chatgpt(prompt, model="gpt-4o", max_tokens=1500, temperature=0.0, retri
         st.error(f"Unexpected error: {e}")
         return ""
 
-def analyze_transcript(transcript_text):
+def analyze_transcript(transcript_text, research_question):
     """Processes a single transcript to generate Initial Notes, ES, and PETs."""
     st.write("### Stage 1: Generating Initial Notes...")
     initial_notes = call_chatgpt(
+        f"Research Question: {research_question}\n\n"
         f"Perform Stage 1 of IPA analysis on the participant's responses in the transcript. "
         f"Only use the participant’s responses and exclude any interviewer questions or comments. Use British English spelling throughout.\n\nTranscript:\n{transcript_text}",
         temperature=0.2
@@ -56,6 +57,7 @@ def analyze_transcript(transcript_text):
     
     st.write("### Stage 2: Formulating Experiential Statements (ES)...")
     es = call_chatgpt(
+        f"Research Question: {research_question}\n\n"
         f"Based on the following initial notes, formulate Experiential Statements (ES) focusing solely on the participant’s responses. "
         f"Exclude any interviewer questions or comments. Use British English spelling in all statements.\n\nInitial Notes:\n{initial_notes}",
         temperature=0.3
@@ -63,6 +65,7 @@ def analyze_transcript(transcript_text):
     
     st.write("### Stage 3: Clustering PETs...")
     pets = call_chatgpt(
+        f"Research Question: {research_question}\n\n"
         f"Using the following Experiential Statements (ES), cluster them into Personal Experiential Themes (PETs). "
         f"For each PET, provide:\n\n"
         f"- **Theme Name**: A concise, creative title.\n"
@@ -76,10 +79,11 @@ def analyze_transcript(transcript_text):
     
     return initial_notes, es, pets
 
-def generate_gets(combined_pets):
+def generate_gets(combined_pets, research_question):
     """Generates Group Experiential Themes (GETs) based on combined PETs from multiple transcripts."""
     st.write("### Stage 4: Writing up GETs...")
     get_writeup = call_chatgpt(
+        f"Research Question: {research_question}\n\n"
         f"Based on the following combined Personal Experiential Themes (PETs) from multiple participants, synthesise Group Experiential Themes (GETs) as follows:\n\n"
         f"- **Theme Name**: A group-level theme that captures the collective meaning across PETs.\n"
         f"- **Summary**: A short description of the shared experience reflected in this theme.\n"
@@ -90,7 +94,7 @@ def generate_gets(combined_pets):
     )
     return get_writeup
 
-def ipa_analysis_pipeline(transcripts):
+def ipa_analysis_pipeline(transcripts, research_question):
     """Runs the full IPA analysis pipeline on multiple transcripts and returns markdown content."""
     all_initial_notes = []
     all_es = []
@@ -116,17 +120,18 @@ def ipa_analysis_pipeline(transcripts):
             return ""
 
         st.write(f"## Processing Transcript {i+1}")
-        initial_notes, es, pets = analyze_transcript(transcript_text)
+        initial_notes, es, pets = analyze_transcript(transcript_text, research_question)
         all_initial_notes.append(initial_notes)
         all_es.append(es)
         all_pets.append(pets)
 
     # Combine all PETs for GET analysis
     combined_pets = "\n\n".join(all_pets)
-    get_writeup = generate_gets(combined_pets)
+    get_writeup = generate_gets(combined_pets, research_question)
 
     # Prepare markdown content for the report
     markdown_content = "# IPA Analysis Report\n\n"
+    markdown_content += f"## Research Question: {research_question}\n\n"
     for i, (initial_notes, es, pets) in enumerate(zip(all_initial_notes, all_es, all_pets)):
         markdown_content += (
             f"## Transcript {i+1}\n\n"
@@ -137,15 +142,17 @@ def ipa_analysis_pipeline(transcripts):
     markdown_content += "## Stage 4: Group Experiential Themes (GETs)\n\n" + get_writeup
     return markdown_content
 
-
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool")
 
+    # Input for research question
+    research_question = st.text_input("Enter the research question to guide the analysis", "")
+    
     uploaded_files = st.file_uploader("Choose transcript text files", type=["txt"], accept_multiple_files=True)
 
     if st.button("Run IPA Analysis"):
-        if uploaded_files:
-            markdown_content = ipa_analysis_pipeline(uploaded_files)
+        if research_question and uploaded_files:
+            markdown_content = ipa_analysis_pipeline(uploaded_files, research_question)
             if markdown_content:
                 st.write("### Analysis Complete. Download the Report Below:")
                 st.download_button(
@@ -156,9 +163,10 @@ def main():
                 )
                 st.markdown("### Report Preview:")
                 st.markdown(markdown_content)
+        elif not research_question:
+            st.warning("Please enter a research question to direct the analysis.")
         else:
             st.warning("Please upload at least one transcript file.")
 
 if __name__ == "__main__":
     main()
-    
