@@ -15,7 +15,7 @@ except KeyError:
     st.error('OpenAI API key not found in secrets. Please add "OPENAI_API_KEY" to your secrets.')
     st.stop()
 
-def call_chatgpt(prompt, model="gpt-4", max_tokens=500, temperature=0.0, retries=2):
+def call_chatgpt(prompt, model="gpt-4o", max_tokens=500, temperature=0.0, retries=2):
     """Calls the OpenAI API and returns the response as text."""
     try:
         response = client.chat.completions.create(
