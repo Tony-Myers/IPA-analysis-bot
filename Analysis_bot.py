@@ -15,13 +15,13 @@ except KeyError:
     st.error('OpenAI API key not found in secrets. Please add "OPENAI_API_KEY" to your secrets.')
     st.stop()
 
-def call_chatgpt(prompt, model="gpt-4o", max_tokens=500, temperature=0.0, retries=2):
+def call_chatgpt(prompt, model="gpt-4", max_tokens=500, temperature=0.0, retries=2):
     """Calls the OpenAI API and returns the response as text."""
     try:
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "You are an expert qualitative researcher specialising in Interpretative Phenomenological Analysis (IPA). Please use British English spelling in all responses, including quotes."},
+                {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA). Please use British English spelling in all responses, including quotes."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=max_tokens,
@@ -91,7 +91,7 @@ def generate_gets(combined_pets, research_question, aspect):
     st.write(f"### Stage 4: Writing up GETs for {aspect}...")
     get_writeup = call_chatgpt(
         f"Research Question Aspect: {aspect}\n\n"
-        f"Based on the following combined Personal Experiential Themes (PETs) for '{aspect}', synthesise Group Experiential Themes (GETs).\n\n"
+        f"Based on the following combined Personal Experiential Themes (PETs) for '{aspect}', synthesize Group Experiential Themes (GETs).\n\n"
         f"Combined Personal Experiential Themes (PETs):\n{combined_pets}",
         temperature=0.7
     )
@@ -149,6 +149,11 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects):
 
         # Append results to markdown_content
         markdown_content += f"# Aspect: {aspect}\n\n"
+        for i, (initial_notes, es, pets) in enumerate(zip(all_initial_notes, all_es, all
+::contentReference[oaicite:0]{index=0}
+ 
+        # Append results to markdown_content
+        markdown_content += f"# Aspect: {aspect}\n\n"
         for i, (initial_notes, es, pets) in enumerate(zip(all_initial_notes, all_es, all_pets)):
             markdown_content += (
                 f"## Transcript {i+1}\n\n"
@@ -156,10 +161,9 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects):
                 f"### Stage 2: Experiential Statements\n\n{es}\n\n"
                 f"### Stage 3: Personal Experiential Themes (PETs)\n\n{pets}\n\n"
             )
-        markdown_content += f"## Stage 4: Group Experiential Themes (GETs) for {aspect}\n\n" + get_writeup + "\n\n"
+        markdown_content += f"## Stage 4: Group Experiential Themes (GETs) for {aspect}\n\n{get_writeup}\n\n"
 
     return markdown_content
-
 
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool with Multiple Aspects")
@@ -193,4 +197,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-
+    
+    
