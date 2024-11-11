@@ -158,7 +158,8 @@ for i, (initial_notes, es, pets) in enumerate(zip(all_initial_notes, all_es, all
     )
 markdown_content += f"## Stage 4: Group Experiential Themes (GETs) for {aspect}\n\n{get_writeup}\n\n"
 
-    return markdown_content
+return markdown_content
+
 
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool with Multiple Aspects")
