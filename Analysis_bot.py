@@ -147,12 +147,6 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects):
             "get_writeup": get_writeup
         }
 
-        # Append results to markdown_content
-        markdown_content += f"# Aspect: {aspect}\n\n"
-        for i, (initial_notes, es, pets) in enumerate(zip(all_initial_notes, all_es, all
-::contentReference[oaicite:0]{index=0}
- 
-        # Append results to markdown_content
 # Append results to markdown_content
 markdown_content += f"# Aspect: {aspect}\n\n"
 for i, (initial_notes, es, pets) in enumerate(zip(all_initial_notes, all_es, all_pets)):
