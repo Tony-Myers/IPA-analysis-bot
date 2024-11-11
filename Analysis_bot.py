@@ -104,6 +104,7 @@ def generate_gets(combined_pets, research_question, aspect):
 def ipa_analysis_pipeline(transcripts, research_question, aspects):
     """Runs the full IPA analysis pipeline on multiple transcripts for each aspect of the research question."""
     analysis_results = {}
+    markdown_content = ""  # Initialize markdown_content
 
     for aspect in aspects:
         all_initial_notes = []
@@ -145,18 +146,20 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects):
             "pets": all_pets,
             "get_writeup": get_writeup
         }
-    for aspect, results in analysis_results.items():
+
+        # Append results to markdown_content
         markdown_content += f"# Aspect: {aspect}\n\n"
-        for i, (initial_notes, es, pets) in enumerate(zip(results["initial_notes"], results["es"], results["pets"])):
+        for i, (initial_notes, es, pets) in enumerate(zip(all_initial_notes, all_es, all_pets)):
             markdown_content += (
                 f"## Transcript {i+1}\n\n"
                 f"### Stage 1: Initial Notes\n\n{initial_notes}\n\n"
                 f"### Stage 2: Experiential Statements\n\n{es}\n\n"
                 f"### Stage 3: Personal Experiential Themes (PETs)\n\n{pets}\n\n"
             )
-        markdown_content += f"## Stage 4: Group Experiential Themes (GETs) for {aspect}\n\n" + results["get_writeup"]
+        markdown_content += f"## Stage 4: Group Experiential Themes (GETs) for {aspect}\n\n" + get_writeup + "\n\n"
 
     return markdown_content
+
 
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool with Multiple Aspects")
