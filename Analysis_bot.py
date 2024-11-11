@@ -161,29 +161,6 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects):
     return markdown_content
 
 
-# Store the results in a dictionary for each aspect
-        analysis_results[aspect] = {
-            "initial_notes": all_initial_notes,
-            "es": all_es,
-            "pets": all_pets,
-            "get_writeup": get_writeup
-        }
-
-
-# Append results to markdown_content
-        markdown_content += f"# Aspect: {aspect}\n\n"
-        for i, (initial_notes, es, pets) in enumerate(zip(all_initial_notes, all_es, all_pets)):
-            markdown_content += (
-                f"## Transcript {i+1}\n\n"
-                f"### Stage 1: Initial Notes\n\n{initial_notes}\n\n"
-                f"### Stage 2: Experiential Statements\n\n{es}\n\n"
-                f"### Stage 3: Personal Experiential Themes (PETs)\n\n{pets}\n\n"
-            )
-        markdown_content += f"## Stage 4: Group Experiential Themes (GETs) for {aspect}\n\n{get_writeup}\n\n"
-
-    return markdown_content
-
-
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool with Multiple Aspects")
 
