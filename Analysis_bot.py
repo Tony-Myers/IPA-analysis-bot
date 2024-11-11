@@ -161,13 +161,14 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects):
     return markdown_content
 
 
-        # Store the results in a dictionary for each aspect
-        analysis_results[aspect] = {
-            "initial_notes": all_initial_notes,
-            "es": all_es,
-            "pets": all_pets,
-            "get_writeup": get_writeup
-        }
+# Store the results in a dictionary for each aspect
+analysis_results[aspect] = {
+    "initial_notes": all_initial_notes,
+    "es": all_es,
+    "pets": all_pets,
+    "get_writeup": get_writeup
+}
+
 
 # Append results to markdown_content
 markdown_content += f"# Aspect: {aspect}\n\n"
