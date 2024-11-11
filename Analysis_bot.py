@@ -15,7 +15,7 @@ except KeyError:
     st.error('OpenAI API key not found in secrets. Please add "OPENAI_API_KEY" to your secrets.')
     st.stop()
 
-def call_chatgpt(prompt, model="gpt-4o", max_tokens=1500, temperature=0.0, retries=2):
+def call_chatgpt(prompt, model="gpt-4", max_tokens=1500, temperature=0.0, retries=2):
     """Calls the OpenAI API and returns the response as text."""
     try:
         response = client.chat.completions.create(
@@ -145,13 +145,49 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects):
             "pets": all_pets,
             "get_writeup": get_writeup
         }
+    for aspect, results in analysis_results.items():
+        markdown_content += f"# Aspect: {aspect}\n\n"
+        for i, (initial_notes, es, pets) in enumerate(zip(results["initial_notes"], results["es"], results["pets"])):
+            markdown_content += (
+                f"## Transcript {i+1}\n\n"
+                f"### Stage 1: Initial Notes\n\n{initial_notes}\n\n"
+                f"### Stage 2: Experiential Statements\n\n{es}\n\n"
+                f"### Stage 3: Personal Experiential Themes (PETs)\n\n{pets}\n\n"
+            )
+        markdown_content += f"## Stage 4: Group Experiential Themes (GETs) for {aspect}\n\n" + results["get_writeup"]
 
-    return analysis_results
+    return markdown_content
 
 def main():
-    st.title("Interpretative Phenomenological Analysis (IPA) Tool")
+    st.title("Interpretative Phenomenological Analysis (IPA) Tool with Multiple Aspects")
 
-    # Input for research question
-    research_question = st.text_input("Enter the research question to
-::contentReference[oaicite:0]{index=0}
- 
+    research_question = st.text_input("Enter the research question to guide the analysis", "")
+    
+    aspects_input = st.text_input("Enter aspects of the research question (comma-separated)", "")
+    aspects = [aspect.strip() for aspect in aspects_input.split(",") if aspect.strip()]
+    
+    uploaded_files = st.file_uploader("Choose transcript text files", type=["txt"], accept_multiple_files=True)
+
+    if st.button("Run IPA Analysis"):
+        if research_question and aspects and uploaded_files:
+            markdown_content = ipa_analysis_pipeline(uploaded_files, research_question, aspects)
+            if markdown_content:
+                st.write("### Analysis Complete. Download the Report Below:")
+                st.download_button(
+                    label="Download Analysis Report",
+                    data=markdown_content,
+                    file_name="IPA_Analysis_Report.md",
+                    mime="text/markdown"
+                )
+                st.markdown("### Report Preview:")
+                st.markdown(markdown_content)
+        elif not research_question:
+            st.warning("Please enter a research question to direct the analysis.")
+        elif not aspects:
+            st.warning("Please enter at least one aspect of the research question.")
+        else:
+            st.warning("Please upload at least one transcript file.")
+
+if __name__ == "__main__":
+    main()
+
