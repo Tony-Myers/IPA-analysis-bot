@@ -7,21 +7,22 @@ from openai import OpenAI, OpenAIError, RateLimitError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Retrieve OpenAI API key from Streamlit secrets
+# Retrieve DeepSeek API key from Streamlit secrets
 try:
-    api_key = st.secrets["OPENAI_API_KEY"]
-    client = OpenAI(api_key=api_key)
+    api_key = st.secrets["DEEPSEEK_API_KEY"]
+    # Initialise the OpenAI client with the DeepSeek base URL
+    client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
 except KeyError:
-    st.error('OpenAI API key not found in secrets. Please add "OPENAI_API_KEY" to your secrets.')
+    st.error('DeepSeek API key not found in secrets. Please add "DEEPSEEK_API_KEY" to your secrets.')
     st.stop()
 
-def call_chatgpt(prompt, model="gpt-4o", max_tokens=500, temperature=0.0, retries=2):
-    """Calls the OpenAI API and returns the response as text."""
+def call_deepseek(prompt, model="deepseek-chat", max_tokens=500, temperature=0.0, retries=2):
+    """Calls the DeepSeek API and returns the response as text."""
     try:
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "You are an expert qualitative researcher specializing in Interpretative Phenomenological Analysis (IPA). Please use British English spelling in all responses, including quotes."},
+                {"role": "system", "content": "You are an expert qualitative researcher specialising in Interpretative Phenomenological Analysis (IPA). Please use British English spelling in all responses, including quotes."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=max_tokens,
@@ -34,12 +35,12 @@ def call_chatgpt(prompt, model="gpt-4o", max_tokens=500, temperature=0.0, retrie
         if retries > 0:
             st.warning("Rate limit exceeded. Retrying in 60 seconds...")
             time.sleep(60)
-            return call_chatgpt(prompt, model, max_tokens, temperature, retries - 1)
+            return call_deepseek(prompt, model, max_tokens, temperature, retries - 1)
         else:
             st.error("Rate limit exceeded.")
             return ""
     except OpenAIError as e:
-        st.error(f"OpenAI API error: {e}")
+        st.error(f"API error: {e}")
         return ""
     except Exception as e:
         st.error(f"Unexpected error: {e}")
@@ -48,7 +49,7 @@ def call_chatgpt(prompt, model="gpt-4o", max_tokens=500, temperature=0.0, retrie
 def analyze_transcript(transcript_text, research_question, aspect, transcript_index):
     """Processes a single transcript to generate Initial Notes, ES, and PETs for a specific aspect."""
     st.write(f"### Processing {aspect} - Stage 1: Generating Initial Notes...")
-    initial_notes = call_chatgpt(
+    initial_notes = call_deepseek(
         f"Research Question Aspect: {aspect}\n\n"
         f"Perform Stage 1 of IPA analysis on the participant's responses in the transcript focusing on '{aspect}' only. "
         f"Use British English spelling.\n\nTranscript:\n{transcript_text}",
@@ -59,7 +60,7 @@ def analyze_transcript(transcript_text, research_question, aspect, transcript_in
         return None, None, None
     
     st.write(f"### Processing {aspect} - Stage 2: Formulating Experiential Statements (ES)...")
-    es = call_chatgpt(
+    es = call_deepseek(
         f"Research Question Aspect: {aspect}\n\n"
         f"Based on the following initial notes, formulate Experiential Statements (ES) focusing solely on the participant’s responses about '{aspect}'. "
         f"Use British English spelling.\n\nInitial Notes:\n{initial_notes}",
@@ -70,7 +71,7 @@ def analyze_transcript(transcript_text, research_question, aspect, transcript_in
         return None, None, None
     
     st.write(f"### Processing {aspect} - Stage 3: Clustering PETs...")
-    pets = call_chatgpt(
+    pets = call_deepseek(
         f"Research Question Aspect: {aspect}\n\n"
         f"Using the following Experiential Statements (ES) related to '{aspect}', cluster them into Personal Experiential Themes (PETs).\n\n"
         f"Experiential Statements:\n{es}",
@@ -89,7 +90,7 @@ def generate_gets(combined_pets, research_question, aspect):
         return "No GETs generated due to lack of PETs."
     
     st.write(f"### Stage 4: Writing up GETs for {aspect}...")
-    get_writeup = call_chatgpt(
+    get_writeup = call_deepseek(
         f"Research Question Aspect: {aspect}\n\n"
         f"Based on the following combined Personal Experiential Themes (PETs) for '{aspect}', synthesize Group Experiential Themes (GETs).\n\n"
         f"Combined Personal Experiential Themes (PETs):\n{combined_pets}",
