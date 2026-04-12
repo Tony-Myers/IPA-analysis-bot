@@ -7,11 +7,14 @@ from openai import OpenAI, OpenAIError, RateLimitError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# --- Safe Global API Initialisation ---
+# Retrieve the key safely without triggering Streamlit UI errors globally
+api_key = st.secrets.get("DEEPSEEK_API_KEY")
+client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com") if api_key else None
+
 # --- Authentication Function ---
 def check_password():
     """Returns `True` if the user had the correct password."""
-    
-    # Safety check to ensure the secret exists
     if "APP_PASSWORD" not in st.secrets:
         st.error('App password not configured. Please add "APP_PASSWORD" to your secrets.')
         st.stop()
@@ -20,36 +23,26 @@ def check_password():
         """Checks whether a password entered by the user is correct."""
         if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Remove password from session state for security
+            del st.session_state["password"]  
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        # First run, show input for password.
         st.text_input("Please enter the password to access this application", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
-        # Password incorrect, show input + error.
         st.text_input("Please enter the password to access this application", type="password", on_change=password_entered, key="password")
         st.error("Incorrect password.")
         return False
     else:
-        # Password correct.
         return True
 
 # --- Core Functions ---
 def call_deepseek(prompt, reflexive_statement="", model="deepseek-chat", max_tokens=1500, temperature=0.0, retries=2):
     """Calls the DeepSeek API, applying the reflexive statement if provided."""
     
-    # Initialise the client securely within the function scope
-    if "DEEPSEEK_API_KEY" not in st.secrets:
-        st.error('DeepSeek API key not found in secrets.')
-        return ""
-        
-    try:
-        client = OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
-    except Exception as e:
-        st.error(f"Failed to initialise client: {e}")
+    if not client:
+        st.error("DeepSeek API key is missing. Please check your secrets.")
         return ""
     
     system_instruction = "You are an expert qualitative researcher specialising in Interpretative Phenomenological Analysis (IPA). Please use British English spelling in all responses, including quotes."
@@ -66,7 +59,6 @@ def call_deepseek(prompt, reflexive_statement="", model="deepseek-chat", max_tok
             ],
             max_tokens=max_tokens,
             temperature=temperature
-            # Removed stop=["}"] as it interferes with qualitative text generation
         )
         content = response.choices[0].message.content
         return content
@@ -155,13 +147,11 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects, reflexive_sta
         all_es = []
         all_pets = []
 
-        # Process each transcript individually for each aspect
         for i, transcript in enumerate(transcripts):
             try:
-                # Reset the file pointer to the beginning of the file for each aspect loop
+                # Reset file pointer for multi-aspect reads
                 transcript.seek(0) 
                 
-                # Try to read the transcript with UTF-8 encoding
                 try:
                     transcript_text = transcript.read().decode("utf-8").strip()
                 except UnicodeDecodeError:
@@ -186,7 +176,6 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects, reflexive_sta
         combined_pets = "\n\n".join(all_pets)
         get_writeup = generate_gets(combined_pets, research_question, aspect, reflexive_statement)
 
-        # Store the results in a dictionary for each aspect
         analysis_results[aspect] = {
             "initial_notes": all_initial_notes,
             "es": all_es,
@@ -194,7 +183,6 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects, reflexive_sta
             "get_writeup": get_writeup
         }
 
-        # Append results to markdown_content
         markdown_content += f"# Aspect: {aspect}\n\n"
         for i, (initial_notes, es, pets) in enumerate(zip(all_initial_notes, all_es, all_pets)):
             markdown_content += (
@@ -210,13 +198,10 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects, reflexive_sta
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool")
 
-    # Halt execution here if the password is not correct
     if not check_password():
         st.stop()
 
-    # The rest of the app only runs if authentication passes
     research_question = st.text_input("Enter the research question to guide the analysis", "")
-    
     aspects_input = st.text_input("Enter aspects of the research question (comma-separated)", "")
     aspects = [aspect.strip() for aspect in aspects_input.split(",") if aspect.strip()]
 
@@ -230,12 +215,9 @@ def main():
 
     if st.button("Run IPA Analysis"):
         if research_question and aspects and uploaded_files:
-            with st.spinner("Analysis in progress. This may take several minutes..."):
-                markdown_content = ipa_analysis_pipeline(uploaded_files, research_question, aspects, reflexive_statement)
-            
+            markdown_content = ipa_analysis_pipeline(uploaded_files, research_question, aspects, reflexive_statement)
             if markdown_content:
-                st.success("Analysis Complete!")
-                st.write("### Download the Report Below:")
+                st.write("### Analysis Complete. Download the Report Below:")
                 st.download_button(
                     label="Download Analysis Report",
                     data=markdown_content,
