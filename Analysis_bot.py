@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def check_password():
     """Returns `True` if the user had the correct password."""
     
-    # Safety check: Ensure the secret exists before attempting to read it
+    # Safety check to ensure the secret exists
     if "APP_PASSWORD" not in st.secrets:
         st.error('App password not configured. Please add "APP_PASSWORD" to your secrets.')
         st.stop()
@@ -37,23 +37,20 @@ def check_password():
         # Password correct.
         return True
 
-# --- API Initialisation ---
-@st.cache_resource
-def get_openai_client():
-    """Initialises and caches the DeepSeek client securely within the active Streamlit session."""
-    if "DEEPSEEK_API_KEY" not in st.secrets:
-        st.error('DeepSeek API key not found in secrets. Please add "DEEPSEEK_API_KEY" to your secrets.')
-        st.stop()
-        
-    api_key = st.secrets["DEEPSEEK_API_KEY"]
-    return OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
-
 # --- Core Functions ---
-def call_deepseek(prompt, reflexive_statement="", model="deepseek-chat", max_tokens=500, temperature=0.0, retries=2):
+def call_deepseek(prompt, reflexive_statement="", model="deepseek-chat", max_tokens=1500, temperature=0.0, retries=2):
     """Calls the DeepSeek API, applying the reflexive statement if provided."""
     
-    # Instantiate the client securely within the function scope
-    client = get_openai_client()
+    # Initialise the client securely within the function scope
+    if "DEEPSEEK_API_KEY" not in st.secrets:
+        st.error('DeepSeek API key not found in secrets.')
+        return ""
+        
+    try:
+        client = OpenAI(api_key=st.secrets["DEEPSEEK_API_KEY"], base_url="https://api.deepseek.com")
+    except Exception as e:
+        st.error(f"Failed to initialise client: {e}")
+        return ""
     
     system_instruction = "You are an expert qualitative researcher specialising in Interpretative Phenomenological Analysis (IPA). Please use British English spelling in all responses, including quotes."
     
@@ -68,8 +65,8 @@ def call_deepseek(prompt, reflexive_statement="", model="deepseek-chat", max_tok
                 {"role": "user", "content": prompt}
             ],
             max_tokens=max_tokens,
-            temperature=temperature,
-            stop=["}"]
+            temperature=temperature
+            # Removed stop=["}"] as it interferes with qualitative text generation
         )
         content = response.choices[0].message.content
         return content
@@ -161,7 +158,7 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects, reflexive_sta
         # Process each transcript individually for each aspect
         for i, transcript in enumerate(transcripts):
             try:
-                # FIX: Reset the file pointer to the beginning of the file every time
+                # Reset the file pointer to the beginning of the file for each aspect loop
                 transcript.seek(0) 
                 
                 # Try to read the transcript with UTF-8 encoding
@@ -209,6 +206,7 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects, reflexive_sta
         markdown_content += f"## Stage 4: Group Experiential Themes (GETs) for {aspect}\n\n{get_writeup}\n\n"
 
     return markdown_content
+
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool")
 
@@ -230,34 +228,28 @@ def main():
     
     uploaded_files = st.file_uploader("Choose transcript text files", type=["txt"], accept_multiple_files=True)
 
-    # FIX: Initialize session state to hold our generated report
-    if "final_report" not in st.session_state:
-        st.session_state.final_report = None
-
     if st.button("Run IPA Analysis"):
         if research_question and aspects and uploaded_files:
-            # FIX: Save the output to session_state instead of a local variable
-            st.session_state.final_report = ipa_analysis_pipeline(uploaded_files, research_question, aspects, reflexive_statement)
+            with st.spinner("Analysis in progress. This may take several minutes..."):
+                markdown_content = ipa_analysis_pipeline(uploaded_files, research_question, aspects, reflexive_statement)
+            
+            if markdown_content:
+                st.success("Analysis Complete!")
+                st.write("### Download the Report Below:")
+                st.download_button(
+                    label="Download Analysis Report",
+                    data=markdown_content,
+                    file_name="IPA_Analysis_Report.md",
+                    mime="text/markdown"
+                )
+                st.markdown("### Report Preview:")
+                st.markdown(markdown_content)
         elif not research_question:
             st.warning("Please enter a research question to direct the analysis.")
         elif not aspects:
             st.warning("Please enter at least one aspect of the research question.")
         else:
             st.warning("Please upload at least one transcript file.")
-
-    # FIX: Place the display and download buttons OUTSIDE the "Run" button logic
-    # This ensures they remain on screen and function correctly when clicked.
-    if st.session_state.final_report:
-        st.success("Analysis Complete!")
-        st.write("### Download the Report Below:")
-        st.download_button(
-            label="Download Analysis Report",
-            data=st.session_state.final_report,
-            file_name="IPA_Analysis_Report.md",
-            mime="text/markdown"
-        )
-        st.markdown("### Report Preview:")
-        st.markdown(st.session_state.final_report)
 
 if __name__ == "__main__":
     main()
