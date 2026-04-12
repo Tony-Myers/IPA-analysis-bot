@@ -161,6 +161,9 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects, reflexive_sta
         # Process each transcript individually for each aspect
         for i, transcript in enumerate(transcripts):
             try:
+                # FIX: Reset the file pointer to the beginning of the file every time
+                transcript.seek(0) 
+                
                 # Try to read the transcript with UTF-8 encoding
                 try:
                     transcript_text = transcript.read().decode("utf-8").strip()
@@ -206,7 +209,6 @@ def ipa_analysis_pipeline(transcripts, research_question, aspects, reflexive_sta
         markdown_content += f"## Stage 4: Group Experiential Themes (GETs) for {aspect}\n\n{get_writeup}\n\n"
 
     return markdown_content
-
 def main():
     st.title("Interpretative Phenomenological Analysis (IPA) Tool")
 
@@ -220,7 +222,6 @@ def main():
     aspects_input = st.text_input("Enter aspects of the research question (comma-separated)", "")
     aspects = [aspect.strip() for aspect in aspects_input.split(",") if aspect.strip()]
 
-    # Added text area for Reflexive Statement
     reflexive_statement = st.text_area(
         "Reflexive Statement (Optional)", 
         help="Paste your reflexive statement here. The model will use this to inform its interpretation of the transcripts.",
@@ -229,25 +230,34 @@ def main():
     
     uploaded_files = st.file_uploader("Choose transcript text files", type=["txt"], accept_multiple_files=True)
 
+    # FIX: Initialize session state to hold our generated report
+    if "final_report" not in st.session_state:
+        st.session_state.final_report = None
+
     if st.button("Run IPA Analysis"):
         if research_question and aspects and uploaded_files:
-            markdown_content = ipa_analysis_pipeline(uploaded_files, research_question, aspects, reflexive_statement)
-            if markdown_content:
-                st.write("### Analysis Complete. Download the Report Below:")
-                st.download_button(
-                    label="Download Analysis Report",
-                    data=markdown_content,
-                    file_name="IPA_Analysis_Report.md",
-                    mime="text/markdown"
-                )
-                st.markdown("### Report Preview:")
-                st.markdown(markdown_content)
+            # FIX: Save the output to session_state instead of a local variable
+            st.session_state.final_report = ipa_analysis_pipeline(uploaded_files, research_question, aspects, reflexive_statement)
         elif not research_question:
             st.warning("Please enter a research question to direct the analysis.")
         elif not aspects:
             st.warning("Please enter at least one aspect of the research question.")
         else:
             st.warning("Please upload at least one transcript file.")
+
+    # FIX: Place the display and download buttons OUTSIDE the "Run" button logic
+    # This ensures they remain on screen and function correctly when clicked.
+    if st.session_state.final_report:
+        st.success("Analysis Complete!")
+        st.write("### Download the Report Below:")
+        st.download_button(
+            label="Download Analysis Report",
+            data=st.session_state.final_report,
+            file_name="IPA_Analysis_Report.md",
+            mime="text/markdown"
+        )
+        st.markdown("### Report Preview:")
+        st.markdown(st.session_state.final_report)
 
 if __name__ == "__main__":
     main()
