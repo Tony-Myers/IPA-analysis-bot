@@ -225,7 +225,7 @@ def main():
     aspects_input = st.text_input("Enter aspects of the research question (comma-separated)", "")
     aspects = [aspect.strip() for aspect in aspects_input.split(",") if aspect.strip()]
 
-    # --- Reflexive Statement ---
+# --- Reflexive Statement ---
     st.subheader("Researcher Reflexive Statement")
     reflexive_file = st.file_uploader(
         "Upload a reflexive statement (.txt)", type=["txt"], key="reflexive"
@@ -236,11 +236,16 @@ def main():
 
     reflexive_statement = ""
     if reflexive_file is not None:
-        try:
-            reflexive_statement = reflexive_file.read().decode("utf-8").strip()
-        except UnicodeDecodeError:
-            reflexive_file.seek(0)
-            reflexive_statement = reflexive_file.read().decode("ISO-8859-1").strip()
+        if "reflexive_content" not in st.session_state or st.session_state.get("reflexive_filename") != reflexive_file.name:
+            try:
+                reflexive_statement = reflexive_file.read().decode("utf-8").strip()
+            except UnicodeDecodeError:
+                reflexive_file.seek(0)
+                reflexive_statement = reflexive_file.read().decode("ISO-8859-1").strip()
+            st.session_state.reflexive_content = reflexive_statement
+            st.session_state.reflexive_filename = reflexive_file.name
+        else:
+            reflexive_statement = st.session_state.reflexive_content
     elif reflexive_text_input.strip():
         reflexive_statement = reflexive_text_input.strip()
 
@@ -249,7 +254,7 @@ def main():
 
     # --- Transcript Upload ---
     uploaded_files = st.file_uploader(
-        "Choose transcript text files", type=["txt"], accept_multiple_files=True, key="transcripts"
+        "Choose transcript text files", type=["txt"], accept_multiple_files=True
     )
 
     if st.button("Run IPA Analysis"):
