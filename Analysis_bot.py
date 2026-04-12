@@ -259,15 +259,10 @@ def main():
                 uploaded_files, research_question, aspects, system_prompt
             )
             if markdown_content:
-                st.write("### Analysis Complete. Download the Report Below:")
-                st.download_button(
-                    label="Download Analysis Report",
-                    data=markdown_content,
-                    file_name="IPA_Analysis_Report.md",
-                    mime="text/markdown"
-                )
-                st.markdown("### Report Preview:")
-                st.markdown(markdown_content)
+                st.session_state.analysis_report = markdown_content
+                st.session_state.analysis_complete = True
+            else:
+                st.warning("Analysis produced no output.")
         elif not research_question:
             st.warning("Please enter a research question to direct the analysis.")
         elif not aspects:
@@ -275,6 +270,23 @@ def main():
         else:
             st.warning("Please upload at least one transcript file.")
 
+    # --- Display results from session state (persists across reruns) ---
+    if st.session_state.get("analysis_complete", False):
+        report = st.session_state.analysis_report
+        st.write("### Analysis Complete. Download the Report Below:")
+        st.download_button(
+            label="Download Analysis Report",
+            data=report,
+            file_name="IPA_Analysis_Report.md",
+            mime="text/markdown"
+        )
+        st.markdown("### Report Preview:")
+        st.markdown(report)
+
+        if st.button("Clear Results", key="clear_results"):
+            st.session_state.analysis_complete = False
+            st.session_state.analysis_report = ""
+            st.rerun()
 
 if __name__ == "__main__":
     main()
