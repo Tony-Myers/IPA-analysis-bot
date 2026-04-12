@@ -10,6 +10,12 @@ logger = logging.getLogger(__name__)
 # --- Authentication Function ---
 def check_password():
     """Returns `True` if the user had the correct password."""
+    
+    # Safety check: Ensure the secret exists before attempting to read it
+    if "APP_PASSWORD" not in st.secrets:
+        st.error('App password not configured. Please add "APP_PASSWORD" to your secrets.')
+        st.stop()
+
     def password_entered():
         """Checks whether a password entered by the user is correct."""
         if st.session_state["password"] == st.secrets["APP_PASSWORD"]:
@@ -32,16 +38,22 @@ def check_password():
         return True
 
 # --- API Initialisation ---
-try:
+@st.cache_resource
+def get_openai_client():
+    """Initialises and caches the DeepSeek client securely within the active Streamlit session."""
+    if "DEEPSEEK_API_KEY" not in st.secrets:
+        st.error('DeepSeek API key not found in secrets. Please add "DEEPSEEK_API_KEY" to your secrets.')
+        st.stop()
+        
     api_key = st.secrets["DEEPSEEK_API_KEY"]
-    client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
-except KeyError:
-    st.error('DeepSeek API key not found in secrets. Please add "DEEPSEEK_API_KEY" to your secrets.')
-    st.stop()
+    return OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
 
 # --- Core Functions ---
 def call_deepseek(prompt, reflexive_statement="", model="deepseek-chat", max_tokens=500, temperature=0.0, retries=2):
     """Calls the DeepSeek API, applying the reflexive statement if provided."""
+    
+    # Instantiate the client securely within the function scope
+    client = get_openai_client()
     
     system_instruction = "You are an expert qualitative researcher specialising in Interpretative Phenomenological Analysis (IPA). Please use British English spelling in all responses, including quotes."
     
