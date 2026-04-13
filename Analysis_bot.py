@@ -56,7 +56,9 @@ def build_system_prompt(reflexive_statement=""):
         "'I am holding my preconceptions in abeyance' or 'drawing on the reflexive statement'. "
         "Simply produce the analysis.\n"
         "- Focus exclusively on the participant's lived experience as expressed in their own words.\n"
-        "- Do not insert generic qualitative research language or textbook definitions of IPA concepts."
+        "- Do not insert generic qualitative research language or textbook definitions of IPA concepts.\n"
+        "- NEVER use real names from the transcript. Each participant will be identified by a "
+        "pseudonym provided in the prompt. Use ONLY that pseudonym to refer to the participant."
     )
     if reflexive_statement.strip():
         base += (
@@ -101,15 +103,18 @@ def call_deepseek(prompt, system_prompt, model="deepseek-chat", max_tokens=4096,
         return ""
 
 
-def analyze_transcript(transcript_text, aspect, transcript_index, system_prompt):
+def analyze_transcript(transcript_text, aspect, transcript_index, system_prompt, pseudonym):
     """Processes a single transcript to generate Initial Notes, ES, and PETs for a specific aspect."""
-    st.write(f"Transcript {transcript_index + 1} / {aspect} — Stage 1: Initial Notes...")
+    st.write(f"{pseudonym} / {aspect} — Stage 1: Initial Notes...")
     initial_notes = call_deepseek(
-        f"Research Question Aspect: {aspect}\n\n"
+        f"Research Question Aspect: {aspect}\n"
+        f"Participant pseudonym: {pseudonym}\n\n"
         f"Perform Stage 1 of IPA analysis on this transcript, focusing on '{aspect}' only.\n\n"
         f"Produce descriptive, linguistic, and conceptual comments on the participant's responses. "
-        f"Stay close to the participant's own language. Write in the third person throughout "
-        f"(e.g. 'The participant describes...', 'Giles frames this as...'). "
+        f"Stay close to the participant's own language. Write in the third person throughout, "
+        f"referring to the participant ONLY as '{pseudonym}' "
+        f"(e.g. '{pseudonym} describes...', '{pseudonym} frames this as...'). "
+        f"Do not use any real names that appear in the transcript. "
         f"Do not describe your analytical method — just produce the notes.\n\n"
         f"Transcript:\n{transcript_text}",
         system_prompt=system_prompt,
@@ -117,32 +122,35 @@ def analyze_transcript(transcript_text, aspect, transcript_index, system_prompt)
     )
     st.write(f"  ↳ Stage 1 returned {len(initial_notes)} characters")
     if not initial_notes.strip():
-        st.warning(f"Transcript {transcript_index + 1}: empty Initial Notes for {aspect}. Skipping.")
+        st.warning(f"{pseudonym}: empty Initial Notes for {aspect}. Skipping.")
         return None, None, None
 
-    st.write(f"Transcript {transcript_index + 1} / {aspect} — Stage 2: Experiential Statements...")
+    st.write(f"{pseudonym} / {aspect} — Stage 2: Experiential Statements...")
     es = call_deepseek(
-        f"Research Question Aspect: {aspect}\n\n"
+        f"Research Question Aspect: {aspect}\n"
+        f"Participant pseudonym: {pseudonym}\n\n"
         f"Based on the following initial notes, formulate Experiential Statements (ES) focusing on "
         f"the participant's experience of '{aspect}'.\n\n"
         f"Each ES should be a concise third-person statement capturing a specific facet of the "
-        f"participant's lived experience. Use the participant's name or 'the participant' — never "
-        f"first person. Do not preface with methodological commentary.\n\n"
+        f"participant's lived experience. Refer to the participant ONLY as '{pseudonym}'. "
+        f"Do not use any real names. Do not preface with methodological commentary.\n\n"
         f"Initial Notes:\n{initial_notes}",
         system_prompt=system_prompt,
         temperature=0.3
     )
     st.write(f"  ↳ Stage 2 returned {len(es)} characters")
     if not es.strip():
-        st.warning(f"Transcript {transcript_index + 1}: empty ES for {aspect}. Skipping.")
+        st.warning(f"{pseudonym}: empty ES for {aspect}. Skipping.")
         return None, None, None
 
-    st.write(f"Transcript {transcript_index + 1} / {aspect} — Stage 3: Clustering PETs...")
+    st.write(f"{pseudonym} / {aspect} — Stage 3: Clustering PETs...")
     pets = call_deepseek(
-        f"Research Question Aspect: {aspect}\n\n"
+        f"Research Question Aspect: {aspect}\n"
+        f"Participant pseudonym: {pseudonym}\n\n"
         f"Using the following Experiential Statements (ES) related to '{aspect}', cluster them into "
         f"Personal Experiential Themes (PETs). Each theme should have a short descriptive label and "
         f"list the ES that belong to it.\n\n"
+        f"Refer to the participant ONLY as '{pseudonym}'. Do not use any real names. "
         f"Write in the third person. Do not describe your clustering rationale — just present the "
         f"themed groupings.\n\n"
         f"Experiential Statements:\n{es}",
@@ -151,7 +159,7 @@ def analyze_transcript(transcript_text, aspect, transcript_index, system_prompt)
     )
     st.write(f"  ↳ Stage 3 returned {len(pets)} characters")
     if not pets.strip():
-        st.warning(f"Transcript {transcript_index + 1}: empty PETs for {aspect}. Skipping.")
+        st.warning(f"{pseudonym}: empty PETs for {aspect}. Skipping.")
         return None, None, None
 
     return initial_notes, es, pets
@@ -205,7 +213,7 @@ def read_transcript_texts(uploaded_files):
     return texts
 
 
-def ipa_analysis_pipeline(transcript_texts, aspects, system_prompt):
+def ipa_analysis_pipeline(transcript_texts, aspects, system_prompt, pseudonyms):
     """Runs the full IPA analysis pipeline on pre-read transcripts for each aspect."""
     markdown_content = ""
 
@@ -215,27 +223,32 @@ def ipa_analysis_pipeline(transcript_texts, aspects, system_prompt):
         all_pets = []
 
         for i, (name, text) in enumerate(transcript_texts):
+            pseudonym = pseudonyms[i]
             st.write(f"---")
-            st.write(f"**Transcript {i + 1} ({name}) — Aspect: {aspect}**")
+            st.write(f"**{pseudonym} ({name}) — Aspect: {aspect}**")
             initial_notes, es, pets = analyze_transcript(
-                text, aspect, i, system_prompt
+                text, aspect, i, system_prompt, pseudonym
             )
             if initial_notes and es and pets:
-                all_initial_notes.append(initial_notes)
-                all_es.append(es)
-                all_pets.append(pets)
+                all_initial_notes.append((pseudonym, initial_notes))
+                all_es.append((pseudonym, es))
+                all_pets.append((pseudonym, pets))
 
         st.write(f"Aspect '{aspect}': {len(all_pets)} transcript(s) produced PETs.")
-        combined_pets = "\n\n".join(all_pets)
+        combined_pets = "\n\n".join(
+            f"[{pseudonym}]\n{pets}" for pseudonym, pets in all_pets
+        )
         get_writeup = generate_gets(combined_pets, aspect, system_prompt)
 
         markdown_content += f"# Aspect: {aspect}\n\n"
-        for i, (initial_notes, es, pets) in enumerate(zip(all_initial_notes, all_es, all_pets)):
+        for pseudonym, initial_notes in all_initial_notes:
+            es_text = next(es for p, es in all_es if p == pseudonym)
+            pets_text = next(pets for p, pets in all_pets if p == pseudonym)
             markdown_content += (
-                f"## Transcript {i + 1}\n\n"
+                f"## {pseudonym}\n\n"
                 f"### Stage 1: Initial Notes\n\n{initial_notes}\n\n"
-                f"### Stage 2: Experiential Statements\n\n{es}\n\n"
-                f"### Stage 3: Personal Experiential Themes (PETs)\n\n{pets}\n\n"
+                f"### Stage 2: Experiential Statements\n\n{es_text}\n\n"
+                f"### Stage 3: Personal Experiential Themes (PETs)\n\n{pets_text}\n\n"
             )
         markdown_content += f"## Stage 4: Group Experiential Themes (GETs) for {aspect}\n\n{get_writeup}\n\n"
 
@@ -301,11 +314,22 @@ def main():
     if reflexive_statement:
         st.success("Reflexive statement loaded — it will be used to inform the analysis.")
 
-    # --- Transcript Upload ---
+   # --- Transcript Upload ---
     uploaded_files = st.file_uploader(
         "Choose transcript text files", type=["txt"], accept_multiple_files=True
     )
 
+    # --- Pseudonym Assignment ---
+    pseudonyms = []
+    if uploaded_files:
+        st.subheader("Participant Pseudonyms")
+        st.caption("Assign a pseudonym for each transcript. Defaults are provided if left blank.")
+        for i, f in enumerate(uploaded_files):
+            default = f"Participant {i + 1}"
+            pseudonym = st.text_input(
+                f"Pseudonym for {f.name}:", value=default, key=f"pseudo_{i}"
+            )
+            pseudonyms.append(pseudonym.strip() if pseudonym.strip() else default)
     # --- Run Analysis ---
     if st.button("Run IPA Analysis"):
         if not research_question:
@@ -322,7 +346,7 @@ def main():
                 st.info(f"Loaded {len(transcript_texts)} transcript(s). "
                         f"Starting analysis across {len(aspects)} aspect(s)...")
                 system_prompt = build_system_prompt(reflexive_statement)
-                markdown_content = ipa_analysis_pipeline(transcript_texts, aspects, system_prompt)
+               markdown_content = ipa_analysis_pipeline(transcript_texts, aspects, system_prompt, pseudonyms)
 
                 # --- Diagnostic output ---
                 st.write(f"**DEBUG: Pipeline returned {len(markdown_content)} characters**")
