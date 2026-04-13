@@ -49,17 +49,25 @@ def build_system_prompt(reflexive_statement=""):
     """Constructs the system prompt, optionally incorporating the researcher's reflexive statement."""
     base = (
         "You are an expert qualitative researcher specialising in Interpretative Phenomenological Analysis (IPA). "
-        "Please use British English spelling in all responses, including quotes."
+        "Use British English spelling throughout, including in quotes.\n\n"
+        "IMPORTANT RULES:\n"
+        "- Always write in the third person. Never use first person (I, my, me).\n"
+        "- Do not narrate or describe your own analytical process. Do not say things like "
+        "'I am holding my preconceptions in abeyance' or 'drawing on the reflexive statement'. "
+        "Simply produce the analysis.\n"
+        "- Focus exclusively on the participant's lived experience as expressed in their own words.\n"
+        "- Do not insert generic qualitative research language or textbook definitions of IPA concepts."
     )
     if reflexive_statement.strip():
         base += (
-            "\n\nThe researcher has provided the following reflexive statement. Use it to inform your "
-            "interpretative lens when analysing transcripts — be sensitive to how the researcher's position, "
-            "assumptions, and experiences may shape meaning-making:\n\n"
-            f"{reflexive_statement}"
+            "\n\nThe researcher has provided a reflexive statement (below). Use it as background context "
+            "to sensitise your interpretation — for example, to notice where the participant's meaning "
+            "diverges from or challenges assumptions the researcher holds. Do NOT quote, paraphrase, or "
+            "refer to the reflexive statement directly in your output. It should shape your interpretative "
+            "lens silently.\n\n"
+            f"--- REFLEXIVE STATEMENT (do not reproduce) ---\n{reflexive_statement}\n--- END ---"
         )
     return base
-
 
 def call_deepseek(prompt, system_prompt, model="deepseek-chat", max_tokens=4096, temperature=0.0, retries=2):
     """Calls the DeepSeek API (OpenAI-compatible) and returns the response as text."""
@@ -98,8 +106,12 @@ def analyze_transcript(transcript_text, aspect, transcript_index, system_prompt)
     st.write(f"Transcript {transcript_index + 1} / {aspect} — Stage 1: Initial Notes...")
     initial_notes = call_deepseek(
         f"Research Question Aspect: {aspect}\n\n"
-        f"Perform Stage 1 of IPA analysis on the participant's responses in the transcript focusing on '{aspect}' only. "
-        f"Use British English spelling.\n\nTranscript:\n{transcript_text}",
+        f"Perform Stage 1 of IPA analysis on this transcript, focusing on '{aspect}' only.\n\n"
+        f"Produce descriptive, linguistic, and conceptual comments on the participant's responses. "
+        f"Stay close to the participant's own language. Write in the third person throughout "
+        f"(e.g. 'The participant describes...', 'Giles frames this as...'). "
+        f"Do not describe your analytical method — just produce the notes.\n\n"
+        f"Transcript:\n{transcript_text}",
         system_prompt=system_prompt,
         temperature=0.2
     )
@@ -111,8 +123,12 @@ def analyze_transcript(transcript_text, aspect, transcript_index, system_prompt)
     st.write(f"Transcript {transcript_index + 1} / {aspect} — Stage 2: Experiential Statements...")
     es = call_deepseek(
         f"Research Question Aspect: {aspect}\n\n"
-        f"Based on the following initial notes, formulate Experiential Statements (ES) focusing solely on the "
-        f"participant's responses about '{aspect}'. Use British English spelling.\n\nInitial Notes:\n{initial_notes}",
+        f"Based on the following initial notes, formulate Experiential Statements (ES) focusing on "
+        f"the participant's experience of '{aspect}'.\n\n"
+        f"Each ES should be a concise third-person statement capturing a specific facet of the "
+        f"participant's lived experience. Use the participant's name or 'the participant' — never "
+        f"first person. Do not preface with methodological commentary.\n\n"
+        f"Initial Notes:\n{initial_notes}",
         system_prompt=system_prompt,
         temperature=0.3
     )
@@ -125,7 +141,11 @@ def analyze_transcript(transcript_text, aspect, transcript_index, system_prompt)
     pets = call_deepseek(
         f"Research Question Aspect: {aspect}\n\n"
         f"Using the following Experiential Statements (ES) related to '{aspect}', cluster them into "
-        f"Personal Experiential Themes (PETs).\n\nExperiential Statements:\n{es}",
+        f"Personal Experiential Themes (PETs). Each theme should have a short descriptive label and "
+        f"list the ES that belong to it.\n\n"
+        f"Write in the third person. Do not describe your clustering rationale — just present the "
+        f"themed groupings.\n\n"
+        f"Experiential Statements:\n{es}",
         system_prompt=system_prompt,
         temperature=0.5
     )
@@ -136,7 +156,6 @@ def analyze_transcript(transcript_text, aspect, transcript_index, system_prompt)
 
     return initial_notes, es, pets
 
-
 def generate_gets(combined_pets, aspect, system_prompt):
     """Generates Group Experiential Themes (GETs) based on combined PETs for a specific aspect."""
     if not combined_pets.strip():
@@ -146,8 +165,13 @@ def generate_gets(combined_pets, aspect, system_prompt):
     st.write(f"{aspect} — Stage 4: Synthesising GETs...")
     get_writeup = call_deepseek(
         f"Research Question Aspect: {aspect}\n\n"
-        f"Based on the following combined Personal Experiential Themes (PETs) for '{aspect}', "
-        f"synthesise Group Experiential Themes (GETs).\n\n"
+        f"Based on the following combined Personal Experiential Themes (PETs) from multiple participants "
+        f"for '{aspect}', synthesise Group Experiential Themes (GETs).\n\n"
+        f"For each GET, provide a descriptive theme label, identify which participants contribute to it, "
+        f"note convergences and divergences across participants, and use brief direct quotes from earlier "
+        f"stages to ground the themes in participants' own words.\n\n"
+        f"Write as a narrative suitable for inclusion in a results section. Use the third person throughout. "
+        f"Do not describe your synthesis method — present the themes directly.\n\n"
         f"Combined Personal Experiential Themes (PETs):\n{combined_pets}",
         system_prompt=system_prompt,
         temperature=0.7
@@ -158,7 +182,6 @@ def generate_gets(combined_pets, aspect, system_prompt):
         return "GETs generation failed."
 
     return get_writeup
-
 
 def read_transcript_texts(uploaded_files):
     """Reads all uploaded files into strings upfront, before any analysis begins."""
