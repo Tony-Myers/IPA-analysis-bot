@@ -34,19 +34,15 @@ def check_password():
 
 
 # --- DeepSeek Client ---
-def get_client():
-    """Returns the DeepSeek client, creating it if necessary."""
-    if "deepseek_client" not in st.session_state:
-        try:
-            api_key = st.secrets["DEEPSEEK_API_KEY"]
-            st.session_state.deepseek_client = OpenAI(
-                api_key=api_key,
-                base_url="https://api.deepseek.com"
-            )
-        except KeyError:
-            st.error('DeepSeek API key not found in secrets. Please add "DEEPSEEK_API_KEY" to your secrets.')
-            st.stop()
-    return st.session_state.deepseek_client
+try:
+    api_key = st.secrets["DEEPSEEK_API_KEY"]
+    client = OpenAI(
+        api_key=api_key,
+        base_url="https://api.deepseek.com"
+    )
+except KeyError:
+    st.error('DeepSeek API key not found in secrets. Please add "DEEPSEEK_API_KEY" to your secrets.')
+    st.stop()
 
 
 def build_system_prompt(reflexive_statement=""):
@@ -67,7 +63,6 @@ def build_system_prompt(reflexive_statement=""):
 
 def call_deepseek(prompt, system_prompt, model="deepseek-chat", max_tokens=4096, temperature=0.0, retries=2):
     """Calls the DeepSeek API (OpenAI-compatible) and returns the response as text."""
-    client = get_client()
     try:
         response = client.chat.completions.create(
             model=model,
@@ -79,27 +74,28 @@ def call_deepseek(prompt, system_prompt, model="deepseek-chat", max_tokens=4096,
             temperature=temperature
         )
         content = response.choices[0].message.content
-        logger.info(f"API response received: {len(content)} chars")
         return content if content else ""
     except RateLimitError:
         if retries > 0:
-            logger.warning("Rate limit exceeded. Retrying in 60 seconds...")
+            st.warning("Rate limit exceeded. Retrying in 60 seconds...")
             time.sleep(60)
             return call_deepseek(prompt, system_prompt, model, max_tokens, temperature, retries - 1)
         else:
-            logger.error("Rate limit exceeded after all retries.")
+            st.error("Rate limit exceeded.")
             return ""
     except OpenAIError as e:
+        st.error(f"DeepSeek API error: {e}")
         logger.error(f"DeepSeek API error: {e}")
         return ""
     except Exception as e:
+        st.error(f"Unexpected error: {e}")
         logger.error(f"Unexpected error: {e}")
         return ""
 
 
-def analyze_transcript(transcript_text, aspect, system_prompt, status):
+def analyze_transcript(transcript_text, aspect, transcript_index, system_prompt):
     """Processes a single transcript to generate Initial Notes, ES, and PETs for a specific aspect."""
-    status.update(label=f"Stage 1: Generating Initial Notes for '{aspect}'...")
+    st.write(f"Transcript {transcript_index + 1} / {aspect} — Stage 1: Initial Notes...")
     initial_notes = call_deepseek(
         f"Research Question Aspect: {aspect}\n\n"
         f"Perform Stage 1 of IPA analysis on the participant's responses in the transcript focusing on '{aspect}' only. "
@@ -107,12 +103,12 @@ def analyze_transcript(transcript_text, aspect, system_prompt, status):
         system_prompt=system_prompt,
         temperature=0.2
     )
+    st.write(f"  ↳ Stage 1 returned {len(initial_notes)} characters")
     if not initial_notes.strip():
-        logger.warning(f"Empty Initial Notes for aspect: {aspect}")
+        st.warning(f"Transcript {transcript_index + 1}: empty Initial Notes for {aspect}. Skipping.")
         return None, None, None
-    status.write(f"✓ Initial Notes generated ({len(initial_notes)} chars)")
 
-    status.update(label=f"Stage 2: Formulating Experiential Statements for '{aspect}'...")
+    st.write(f"Transcript {transcript_index + 1} / {aspect} — Stage 2: Experiential Statements...")
     es = call_deepseek(
         f"Research Question Aspect: {aspect}\n\n"
         f"Based on the following initial notes, formulate Experiential Statements (ES) focusing solely on the "
@@ -120,12 +116,12 @@ def analyze_transcript(transcript_text, aspect, system_prompt, status):
         system_prompt=system_prompt,
         temperature=0.3
     )
+    st.write(f"  ↳ Stage 2 returned {len(es)} characters")
     if not es.strip():
-        logger.warning(f"Empty ES for aspect: {aspect}")
+        st.warning(f"Transcript {transcript_index + 1}: empty ES for {aspect}. Skipping.")
         return None, None, None
-    status.write(f"✓ Experiential Statements generated ({len(es)} chars)")
 
-    status.update(label=f"Stage 3: Clustering PETs for '{aspect}'...")
+    st.write(f"Transcript {transcript_index + 1} / {aspect} — Stage 3: Clustering PETs...")
     pets = call_deepseek(
         f"Research Question Aspect: {aspect}\n\n"
         f"Using the following Experiential Statements (ES) related to '{aspect}', cluster them into "
@@ -133,20 +129,21 @@ def analyze_transcript(transcript_text, aspect, system_prompt, status):
         system_prompt=system_prompt,
         temperature=0.5
     )
+    st.write(f"  ↳ Stage 3 returned {len(pets)} characters")
     if not pets.strip():
-        logger.warning(f"Empty PETs for aspect: {aspect}")
+        st.warning(f"Transcript {transcript_index + 1}: empty PETs for {aspect}. Skipping.")
         return None, None, None
-    status.write(f"✓ PETs generated ({len(pets)} chars)")
 
     return initial_notes, es, pets
 
 
-def generate_gets(combined_pets, aspect, system_prompt, status):
+def generate_gets(combined_pets, aspect, system_prompt):
     """Generates Group Experiential Themes (GETs) based on combined PETs for a specific aspect."""
     if not combined_pets.strip():
+        st.warning(f"No PETs available to generate GETs for aspect: {aspect}.")
         return "No GETs generated due to lack of PETs."
 
-    status.update(label=f"Stage 4: Synthesising GETs for '{aspect}'...")
+    st.write(f"{aspect} — Stage 4: Synthesising GETs...")
     get_writeup = call_deepseek(
         f"Research Question Aspect: {aspect}\n\n"
         f"Based on the following combined Personal Experiential Themes (PETs) for '{aspect}', "
@@ -155,90 +152,71 @@ def generate_gets(combined_pets, aspect, system_prompt, status):
         system_prompt=system_prompt,
         temperature=0.7
     )
+    st.write(f"  ↳ Stage 4 returned {len(get_writeup)} characters")
     if not get_writeup.strip():
+        st.warning(f"Failed to generate GETs for aspect: {aspect}.")
         return "GETs generation failed."
 
-    status.write(f"✓ GETs generated ({len(get_writeup)} chars)")
     return get_writeup
 
 
-def ipa_analysis_pipeline(transcript_contents, aspects, system_prompt):
-    """Runs the full IPA analysis pipeline on pre-read transcript contents for each aspect."""
-    markdown_content = ""
+def read_transcript_texts(uploaded_files):
+    """Reads all uploaded files into strings upfront, before any analysis begins."""
+    texts = []
+    for i, f in enumerate(uploaded_files):
+        try:
+            raw = f.read()
+            try:
+                text = raw.decode("utf-8").strip()
+            except UnicodeDecodeError:
+                text = raw.decode("ISO-8859-1").strip()
 
-    total_steps = len(aspects) * len(transcript_contents) + len(aspects)  # transcripts + GETs per aspect
-    current_step = 0
-    progress_bar = st.progress(0, text="Starting analysis...")
+            if not text:
+                st.error(f"Uploaded transcript {i + 1} ({f.name}) is empty.")
+            else:
+                texts.append((f.name, text))
+                st.write(f"Read transcript: {f.name} ({len(text)} characters)")
+        except Exception as e:
+            st.error(f"Error reading transcript {i + 1} ({f.name}): {e}")
+            logger.error(f"Error reading transcript {i + 1}: {e}")
+    return texts
+
+
+def ipa_analysis_pipeline(transcript_texts, aspects, system_prompt):
+    """Runs the full IPA analysis pipeline on pre-read transcripts for each aspect."""
+    markdown_content = ""
 
     for aspect in aspects:
         all_initial_notes = []
         all_es = []
         all_pets = []
 
-        for i, transcript_text in enumerate(transcript_contents):
-            with st.status(f"Transcript {i + 1} — {aspect}", expanded=True) as status:
-                initial_notes, es, pets = analyze_transcript(
-                    transcript_text, aspect, system_prompt, status
-                )
-                if initial_notes and es and pets:
-                    all_initial_notes.append(initial_notes)
-                    all_es.append(es)
-                    all_pets.append(pets)
-                    status.update(label=f"✓ Transcript {i + 1} — {aspect} complete", state="complete")
-                else:
-                    status.update(label=f"⚠ Transcript {i + 1} — {aspect} produced empty results", state="error")
+        for i, (name, text) in enumerate(transcript_texts):
+            st.write(f"---")
+            st.write(f"**Transcript {i + 1} ({name}) — Aspect: {aspect}**")
+            initial_notes, es, pets = analyze_transcript(
+                text, aspect, i, system_prompt
+            )
+            if initial_notes and es and pets:
+                all_initial_notes.append(initial_notes)
+                all_es.append(es)
+                all_pets.append(pets)
 
-            current_step += 1
-            progress_bar.progress(current_step / total_steps, text=f"Progress: {current_step}/{total_steps}")
-
-        # Generate GETs for this aspect
+        st.write(f"Aspect '{aspect}': {len(all_pets)} transcript(s) produced PETs.")
         combined_pets = "\n\n".join(all_pets)
-        with st.status(f"Generating GETs — {aspect}", expanded=True) as status:
-            get_writeup = generate_gets(combined_pets, aspect, system_prompt, status)
-            status.update(label=f"✓ GETs for '{aspect}' complete", state="complete")
+        get_writeup = generate_gets(combined_pets, aspect, system_prompt)
 
-        current_step += 1
-        progress_bar.progress(current_step / total_steps, text=f"Progress: {current_step}/{total_steps}")
-
-        # Build markdown for this aspect
         markdown_content += f"# Aspect: {aspect}\n\n"
-        for i, (notes, es, pets) in enumerate(zip(all_initial_notes, all_es, all_pets)):
+        for i, (initial_notes, es, pets) in enumerate(zip(all_initial_notes, all_es, all_pets)):
             markdown_content += (
                 f"## Transcript {i + 1}\n\n"
-                f"### Stage 1: Initial Notes\n\n{notes}\n\n"
+                f"### Stage 1: Initial Notes\n\n{initial_notes}\n\n"
                 f"### Stage 2: Experiential Statements\n\n{es}\n\n"
                 f"### Stage 3: Personal Experiential Themes (PETs)\n\n{pets}\n\n"
             )
         markdown_content += f"## Stage 4: Group Experiential Themes (GETs) for {aspect}\n\n{get_writeup}\n\n"
 
-        # Store partial results after each aspect completes
-        st.session_state.analysis_report = markdown_content
-        logger.info(f"Aspect '{aspect}' complete. Report so far: {len(markdown_content)} chars")
-
-    progress_bar.progress(1.0, text="Analysis complete!")
     return markdown_content
-
-
-def read_transcript_contents(uploaded_files):
-    """Reads all uploaded files into memory as strings. Returns list of text contents."""
-    contents = []
-    for i, f in enumerate(uploaded_files):
-        try:
-            try:
-                text = f.read().decode("utf-8").strip()
-            except UnicodeDecodeError:
-                f.seek(0)
-                text = f.read().decode("ISO-8859-1").strip()
-
-            if not text:
-                st.error(f"Transcript {i + 1} ({f.name}) is empty.")
-                continue
-            contents.append(text)
-            logger.info(f"Read transcript {i + 1} ({f.name}): {len(text)} chars")
-        except Exception as e:
-            st.error(f"Error reading transcript {i + 1} ({f.name}): {e}")
-            logger.error(f"Error reading transcript {i + 1}: {e}")
-    return contents
 
 
 def main():
@@ -247,6 +225,26 @@ def main():
     if not check_password():
         st.stop()
 
+    # --- Display results first (persists across reruns) ---
+    if st.session_state.get("analysis_complete", False):
+        report = st.session_state.analysis_report
+        st.success(f"Analysis complete. Report is {len(report)} characters.")
+        st.download_button(
+            label="Download Analysis Report",
+            data=report,
+            file_name="IPA_Analysis_Report.md",
+            mime="text/markdown"
+        )
+        with st.expander("Report Preview", expanded=False):
+            st.markdown(report)
+
+        if st.button("Clear Results and Start New Analysis", key="clear_results"):
+            st.session_state.analysis_complete = False
+            st.session_state.analysis_report = ""
+            st.rerun()
+        st.stop()  # Do not show the input form while results are displayed
+
+    # --- Input form (only shown when no results) ---
     research_question = st.text_input("Enter the research question to guide the analysis", "")
 
     aspects_input = st.text_input("Enter aspects of the research question (comma-separated)", "")
@@ -294,41 +292,26 @@ def main():
         elif not uploaded_files:
             st.warning("Please upload at least one transcript file.")
         else:
-            # Read all transcript content into memory BEFORE starting
-            transcript_contents = read_transcript_contents(uploaded_files)
-            if not transcript_contents:
-                st.error("No valid transcript content could be read.")
+            transcript_texts = read_transcript_texts(uploaded_files)
+            if not transcript_texts:
+                st.error("No valid transcripts could be read.")
             else:
-                st.info(f"Starting analysis: {len(transcript_contents)} transcript(s), {len(aspects)} aspect(s)")
+                st.info(f"Loaded {len(transcript_texts)} transcript(s). "
+                        f"Starting analysis across {len(aspects)} aspect(s)...")
                 system_prompt = build_system_prompt(reflexive_statement)
-                markdown_content = ipa_analysis_pipeline(
-                    transcript_contents, aspects, system_prompt
-                )
+                markdown_content = ipa_analysis_pipeline(transcript_texts, aspects, system_prompt)
+
+                # --- Diagnostic output ---
+                st.write(f"**DEBUG: Pipeline returned {len(markdown_content)} characters**")
+
                 if markdown_content.strip():
                     st.session_state.analysis_report = markdown_content
                     st.session_state.analysis_complete = True
-                    logger.info(f"Analysis complete. Report length: {len(markdown_content)} chars")
+                    st.write("**DEBUG: Session state set. Triggering rerun to display results.**")
+                    time.sleep(2)  # Brief pause so debug messages are visible
+                    st.rerun()
                 else:
-                    st.error("Analysis completed but produced no content. Check the logs above for warnings.")
-
-    # --- Display Results (persists across reruns) ---
-    if st.session_state.get("analysis_complete", False):
-        report = st.session_state.analysis_report
-        st.divider()
-        st.write("### Analysis Complete")
-        st.download_button(
-            label="Download Analysis Report",
-            data=report,
-            file_name="IPA_Analysis_Report.md",
-            mime="text/markdown"
-        )
-        with st.expander("Report Preview", expanded=False):
-            st.markdown(report)
-
-        if st.button("Clear Results", key="clear_results"):
-            st.session_state.analysis_complete = False
-            st.session_state.analysis_report = ""
-            st.rerun()
+                    st.error("Analysis pipeline returned no content. Check warnings above.")
 
 
 if __name__ == "__main__":
