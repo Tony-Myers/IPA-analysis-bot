@@ -278,7 +278,7 @@ def main():
             st.session_state.analysis_complete = False
             st.session_state.analysis_report = ""
             st.rerun()
-        st.stop()  # Do not show the input form while results are displayed
+        st.stop()
 
     # --- Input form (only shown when no results) ---
     research_question = st.text_input("Enter the research question to guide the analysis", "")
@@ -314,7 +314,7 @@ def main():
     if reflexive_statement:
         st.success("Reflexive statement loaded — it will be used to inform the analysis.")
 
-   # --- Transcript Upload ---
+    # --- Transcript Upload ---
     uploaded_files = st.file_uploader(
         "Choose transcript text files", type=["txt"], accept_multiple_files=True
     )
@@ -330,6 +330,7 @@ def main():
                 f"Pseudonym for {f.name}:", value=default, key=f"pseudo_{i}"
             )
             pseudonyms.append(pseudonym.strip() if pseudonym.strip() else default)
+
     # --- Run Analysis ---
     if st.button("Run IPA Analysis"):
         if not research_question:
@@ -346,16 +347,17 @@ def main():
                 st.info(f"Loaded {len(transcript_texts)} transcript(s). "
                         f"Starting analysis across {len(aspects)} aspect(s)...")
                 system_prompt = build_system_prompt(reflexive_statement)
-               markdown_content = ipa_analysis_pipeline(transcript_texts, aspects, system_prompt, pseudonyms)
+                markdown_content = ipa_analysis_pipeline(
+                    transcript_texts, aspects, system_prompt, pseudonyms
+                )
 
-                # --- Diagnostic output ---
                 st.write(f"**DEBUG: Pipeline returned {len(markdown_content)} characters**")
 
                 if markdown_content.strip():
                     st.session_state.analysis_report = markdown_content
                     st.session_state.analysis_complete = True
                     st.write("**DEBUG: Session state set. Triggering rerun to display results.**")
-                    time.sleep(2)  # Brief pause so debug messages are visible
+                    time.sleep(2)
                     st.rerun()
                 else:
                     st.error("Analysis pipeline returned no content. Check warnings above.")
